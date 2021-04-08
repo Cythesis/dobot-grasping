@@ -1,2 +1,4 @@
-# dobot-grasping
-Dobot grasping project
+# Dobot Grasping
+## Authored by **Suction Cup Resoirces**
+
+A masterful Dobot grasping project
