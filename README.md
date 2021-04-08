@@ -3,8 +3,5 @@ Authored by *Suction Cup Resoirces*
 
 A masterful Dobot grasping project
 
-## TBA
-- Subject resources
-- Branches
-- Useful links
-- QR codes for MATLAB and ROS
+## Team Instructions
+For now, since getting things working in one branch is kinda complicated. Let's upload our work onto our own branch and link them up later.
