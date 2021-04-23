@@ -36,6 +36,8 @@ classdef Dobot < handle
         rangeCircle2 = struct('radius', 0.12310, 'zDistOrigin', 0.00177, 'normalDistOrigin', 0.21102);
         rangeCircle3 = struct('radius', 0.14700, 'zDistOrigin', 0.13449, 'normalDistOrigin', 0.06431);
         rangeCircle4 = struct('radius', 0.14592, 'zDistOrigin', -0.15009, 'normalDistOrigin', 0.06796);
+        % Set a default number of steps for unspecified paths
+        defaultSteps = 50;
     end
         
     methods
@@ -141,7 +143,7 @@ classdef Dobot < handle
             currentLinRailPos = currentJointAngles(1);
             link3 = deg2rad(30);
             link4 = deg2rad(70);
-            link5 = deg2rad(90 - link3 - link4);
+            link5 = pi/2 - link3 - link4;
             % If already in range, dont use the lin rail because it is much
             % slower. If not yet in range but it is in the workspace, move
             % the linear rail to the minimum extent to be in range, and then give a guess
@@ -161,9 +163,17 @@ classdef Dobot < handle
                 if (inputTransform(1,4) >= (self.model.base(1,4) + -0.5*self.model.qlim(1))) % Global X coord of input point positive half of rail
                     newBaseTransform = link1Transform;
                     newBaseTransform(1,4) = inputTransform(1,4) - newBaseDX;
+                    % Make sure the new X location is not beyond the rail
+                    if newBaseTransform(1,4) > self.model.base(1,4) + -self.model.qlim(1)
+                        newBaseTransform(1,4) = self.model.base(1,4) + -self.model.qlim(1);
+                    end
                 else % Global X coord of input point negative half of rail
                     newBaseTransform = link1Transform;
                     newBaseTransform(1,4) = inputTransform(1,4) + newBaseDX;
+                    % Make sure the new X location is not beyond the rail
+                    if newBaseTransform(1,4) < self.model.base(1,4)
+                        newBaseTransform(1,4) = self.model.base(1,4);
+                    end
                 end
                 % Obtain a new relative transform with new Link1 transform
                 newRelativeTransform = inv(newBaseTransform) * inputTransform;
@@ -172,7 +182,7 @@ classdef Dobot < handle
                 % Obtain the new position of the linear rail
                 newLinRailPos = newBaseTransform(1,4) - self.model.base(1,4);
                 % Finally, we can obtain the guess pose
-                modelGuessPose = [newLinRailPos, newAzimuth, ...
+                modelGuessPose = [-newLinRailPos, newAzimuth, ...
                                     link3, link4, link5, -newAzimuth];
             else % not in the robot workspace. Return current pose for guess
                 modelGuessPose = currentJointAngles;
@@ -236,27 +246,19 @@ classdef Dobot < handle
             % base location for the robot, ie. where the normal distance
             % becomes equal to the robot reach
             relativeY = pointY - self.model.base(2,4);
-% %             disp("point Z: ")
-% %             disp(pointZ)
             if (pointZ >= (0.03233 + self.model.base(3,4))) % the point where the max reach is defined by either circle 1 or 2
                 % use circle 1 perimeter
-% %                 disp("Using circle 1")
                 normDist = sqrt((self.rangeCircle1.radius)^2 - (pointZ - self.rangeCircle1.zDistOrigin - self.model.base(3,4))^2) ...
-                                + self.rangeCircle1.normalDistOrigin;
+                                + self.rangeCircle1.normalDistOrigin - 0.01;
             else
                 % use circle 2 perimeter
-% %                 disp("Using circle 2")
                 normDist = sqrt((self.rangeCircle2.radius)^2 - (pointZ - self.rangeCircle2.zDistOrigin - self.model.base(3,4))^2) ...
-                                + self.rangeCircle2.normalDistOrigin;
+                                + self.rangeCircle2.normalDistOrigin - 0.01;
             end
-% %             disp("Normal distance: ")
-% %             disp(normDist)
-            if (relativeY > normDist) % Set a limit for the Y value so that we don't sqrt negative number
+            if (relativeY > normDist) || (relativeY < -normDist) % Set a limit for the Y value so that we don't sqrt negative number
                 relativeY = normDist;
             end
             relativeX = sqrt((normDist)^2 - (relativeY)^2);
-% %             disp("Relative X: ")
-% %             disp(relativeX)
             if (pointX >= (self.model.base(1,4) + -0.5*self.model.qlim(1)))
                 idealBaseTransform = self.model.base * rpy2tr(-pi/2,0,0);
                 idealBaseTransform(1,4) = pointX - relativeX;
@@ -270,13 +272,7 @@ classdef Dobot < handle
                     idealBaseTransform(1,4) = linearRailGlobalMin;
                 end
             end
-% %             disp("input transform")
-% %             disp(inputTransform)
             relativeTransform = inv(idealBaseTransform) * inputTransform;
-% %             disp("Ideal base transform: ")
-% %             disp(idealBaseTransform)
-% %             disp("Relative Transform to point: ")
-% %             disp(relativeTransform)
             % First check if the point is within reasonable limits, then
             % check if the point is within reach using CheckInReach()
             if (pointY <= robotYGlobalMax) && (pointY >= robotYGlobalMin) ...
@@ -284,20 +280,36 @@ classdef Dobot < handle
                     && (pointZ <= robotZGlobalMax) && (pointZ >= robotZGlobalMin)
                 if self.CheckInRange(relativeTransform) == 1
                     inBoundary = 1;
-                    disp("a")
                 else
                     inBoundary = 0;
-                    disp("b")
                 end
             else % ie. not in any reasonable range
                 inBoundary = 0;
-                disp("c")
             end
         end
         %% Function to obtain model joint angles from a desired end-effector transform
         function modelJointAngles = GetRobotPose(self, currentJointAngles, inputTransform)
-            
+            [modelGuessPose, inBoundaryCheck] = self.GetGuessPose(currentJointAngles, inputTransform);
+            if inBoundaryCheck == 1
+                [modelJointAngles, error, ~] = self.model.ikcon(inputTransform, modelGuessPose);
+                if error > 0.05
+                    disp("The output transform may be significantly inaccurate.")
+                end
+            else
+                disp("The target transform is not in range.")
+                modelJointAngles = currentJointAngles;
+            end
         end
-        
+        %% Function to obtain a path of joint angles to a desired end-effector transform
+        function modelJointPath = GetJointPathQT(self, currentJointAngles, inputTransform, steps)
+            if nargin ~= 4
+                steps = self.defaultSteps;
+            end
+            finalJointAngles = self.GetRobotPose(currentJointAngles, inputTransform);
+            modelJointPath = jtraj(currentJointAngles, finalJointAngles, steps);
+            if modelJointPath(:, 1) > 0
+                modelJointPath(:, 1) = 0;
+            end
+        end
     end    
 end
