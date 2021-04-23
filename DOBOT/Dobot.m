@@ -227,7 +227,7 @@ classdef Dobot < handle
             % Define some useful limits for more efficient determination
             linearRailGlobalMax = self.model.base(1,4) + -self.model.qlim(1);
             linearRailGlobalMin = self.model.base(1,4);
-            robotMaxReach = 0.320;
+            robotMaxReach = 0.335;
             robotYGlobalMax = self.model.base(2,4) + robotMaxReach;
             robotYGlobalMin = self.model.base(2,4) - 0.230;
             robotZGlobalMax = self.model.base(3,4) + 0.280;
@@ -236,41 +236,47 @@ classdef Dobot < handle
             % base location for the robot, ie. where the normal distance
             % becomes equal to the robot reach
             relativeY = pointY - self.model.base(2,4);
-            disp("point Z: ")
-            disp(pointZ)
+% %             disp("point Z: ")
+% %             disp(pointZ)
             if (pointZ >= (0.03233 + self.model.base(3,4))) % the point where the max reach is defined by either circle 1 or 2
                 % use circle 1 perimeter
-                disp("Using circle 1")
-                normDist = sqrt((self.rangeCircle1.radius)^2 - (pointZ - self.rangeCircle1.zDistOrigin)^2) ...
+% %                 disp("Using circle 1")
+                normDist = sqrt((self.rangeCircle1.radius)^2 - (pointZ - self.rangeCircle1.zDistOrigin - self.model.base(3,4))^2) ...
                                 + self.rangeCircle1.normalDistOrigin;
             else
                 % use circle 2 perimeter
-                disp("Using circle 2")
-                normDist = sqrt((self.rangeCircle2.radius)^2 - (pointZ - self.rangeCircle2.zDistOrigin)^2) ...
+% %                 disp("Using circle 2")
+                normDist = sqrt((self.rangeCircle2.radius)^2 - (pointZ - self.rangeCircle2.zDistOrigin - self.model.base(3,4))^2) ...
                                 + self.rangeCircle2.normalDistOrigin;
             end
-            disp("Normal distance: ")
-            disp(normDist)
+% %             disp("Normal distance: ")
+% %             disp(normDist)
             if (relativeY > normDist) % Set a limit for the Y value so that we don't sqrt negative number
                 relativeY = normDist;
             end
             relativeX = sqrt((normDist)^2 - (relativeY)^2);
-            disp("Relative X: ")
-            disp(relativeX)
+% %             disp("Relative X: ")
+% %             disp(relativeX)
             if (pointX >= (self.model.base(1,4) + -0.5*self.model.qlim(1)))
-                idealBaseTransform = self.model.base * rpy2tr(pi/2,0,0);
+                idealBaseTransform = self.model.base * rpy2tr(-pi/2,0,0);
                 idealBaseTransform(1,4) = pointX - relativeX;
+                if (idealBaseTransform(1,4) > linearRailGlobalMax)
+                    idealBaseTransform(1,4) = linearRailGlobalMax;
+                end
             else % ie. pointX is negative global
-                idealBaseTransform = self.model.base * rpy2tr(pi/2,0,0);
+                idealBaseTransform = self.model.base * rpy2tr(-pi/2,0,0);
                 idealBaseTransform(1,4) = pointX + relativeX;
+                if (idealBaseTransform(1,4) < linearRailGlobalMin)
+                    idealBaseTransform(1,4) = linearRailGlobalMin;
+                end
             end
-            disp("input transform")
-            disp(inputTransform)
+% %             disp("input transform")
+% %             disp(inputTransform)
             relativeTransform = inv(idealBaseTransform) * inputTransform;
-            disp("Ideal base transform: ")
-            disp(idealBaseTransform)
-            disp("Relative Transform to point: ")
-            disp(relativeTransform)
+% %             disp("Ideal base transform: ")
+% %             disp(idealBaseTransform)
+% %             disp("Relative Transform to point: ")
+% %             disp(relativeTransform)
             % First check if the point is within reasonable limits, then
             % check if the point is within reach using CheckInReach()
             if (pointY <= robotYGlobalMax) && (pointY >= robotYGlobalMin) ...
