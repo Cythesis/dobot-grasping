@@ -1,4 +1,4 @@
-%% DOBOT WITH LINEAR RAIL CLASS
+%%              Dobot With Linear Rail Class
 % This class creates a serial link object to simulate a Dobot Magician, 
 % attached to a linear rail. 
 % The following describes links 0 - 6:
@@ -68,14 +68,14 @@ classdef Dobot < handle
         function GetDobot(self, baseTransform)
             % Define DH parameters for SerialLink()
             L(1) = Link([0     0       0       -pi/2    1]); % Prismatic link 'sigma', 1,     'a', -0.133,    'alpha', pi/2   
-            L(2) = Link('d', 0.08,      'a', 0,         'alpha', pi/2  );
+            L(2) = Link('d', 0.08,      'a', 0,         'alpha', pi/2   );
             L(3) = Link('d', 0,         'a', -0.135,    'alpha', 0, 'offset', -pi/2       );
             L(4) = Link('d', 0,         'a', -0.147,    'alpha', 0      );
             L(5) = Link('d', 0,         'a', -0.05254,  'alpha', -pi/2  );
-            L(6) = Link('d', -0.08,      'a', 0,         'alpha', 0      ); % End-effector offset
+            L(6) = Link('d', -0.08,      'a', 0,         'alpha', 0     ); % End-effector offset
             
             % Define joint limits for SerialLink(), based on suggested
-            L(1).qlim =         [   -1,      0   ];
+            L(1).qlim =         [   -1,     0     ];
             L(2).qlim = deg2rad([   -135,   135   ]);
             L(3).qlim = deg2rad([   5,      80    ]);
             L(4).qlim = deg2rad([   15,     170   ]);
@@ -117,8 +117,8 @@ classdef Dobot < handle
         %% Function to convert model joint space to real robot joint space
         function realJointAngles = GetRealJointAngles(self, modelJointAngles)
             realJointAngles = zeros(1, (size(modelJointAngles, 2) - 1)); % Joint 5 will be ommitted
-            realJointAngles(1, 1) = modelJointAngles(1)*-1; % Reverse direction of linear rail (robot toolbox only likes negative prismatic values)
-            realJointAngles(1, 2) = modelJointAngles(2);    % Angle does not require adjustment
+            realJointAngles(1, 1) = modelJointAngles(1) * -1; % Reverse direction of linear rail (robot toolbox only likes negative prismatic values)
+            realJointAngles(1, 2) = modelJointAngles(2);
             realJointAngles(1, 3) = modelJointAngles(3);    % Angle does not require adjustment
             realJointAngles(1, 4) = modelJointAngles(4) + modelJointAngles(3) - (pi/2); % adjust, accounting for mechanical linkage
             realJointAngles(1, 5) = modelJointAngles(6);    % Servo angle is the same (joint 5 ommitted) 
@@ -148,8 +148,7 @@ classdef Dobot < handle
             % slower. If not yet in range but it is in the workspace, move
             % the linear rail to the minimum extent to be in range, and then give a guess
             if inRangeCheck == 1
-                modelGuessPose = [currentLinRailPos, currentAzimuth, ...
-                                    link3, link4, link5, -currentAzimuth];
+                modelGuessPose = [currentLinRailPos, currentAzimuth, link3, link4, link5, -currentAzimuth];
             elseif inBoundaryCheck == 1
                 % The linear rail must be used to reach the point. Create a
                 % new guess link1 location along the rail for the guess
@@ -182,8 +181,7 @@ classdef Dobot < handle
                 % Obtain the new position of the linear rail
                 newLinRailPos = newBaseTransform(1,4) - self.model.base(1,4);
                 % Finally, we can obtain the guess pose
-                modelGuessPose = [-newLinRailPos, newAzimuth, ...
-                                    link3, link4, link5, -newAzimuth];
+                modelGuessPose = [-newLinRailPos, newAzimuth,link3, link4, link5, -newAzimuth];
             else % not in the robot workspace. Return current pose for guess
                 modelGuessPose = currentJointAngles;
             end
@@ -287,8 +285,8 @@ classdef Dobot < handle
                 inBoundary = 0;
             end
         end
-        %% Function to obtain model joint angles from a desired end-effector transform
-        function modelJointAngles = GetRobotPose(self, currentJointAngles, inputTransform)
+        %% Function to obtain model joint angles from a desired end-effector transform with ikcon
+        function modelJointAngles = GetRobotPose_Ikcon(self, currentJointAngles, inputTransform)
             [modelGuessPose, inBoundaryCheck] = self.GetGuessPose(currentJointAngles, inputTransform);
             if inBoundaryCheck == 1
                 [modelJointAngles, error, ~] = self.model.ikcon(inputTransform, modelGuessPose);
@@ -300,16 +298,177 @@ classdef Dobot < handle
                 modelJointAngles = currentJointAngles;
             end
         end
-        %% Function to obtain a path of joint angles to a desired end-effector transform
-        function modelJointPath = GetJointPathQT(self, currentJointAngles, inputTransform, steps)
+        %% Function to obtain model joint angles from a desired end-effector transform with ikine
+        function modelJointAngles = GetRobotPose_Ikine(self, currentJointAngles, inputTransform)
+            [modelGuessPose, inBoundaryCheck] = self.GetGuessPose(currentJointAngles, inputTransform);
+            if inBoundaryCheck == 1
+                modelJointAngles = self.model.ikine(inputTransform, modelGuessPose);
+            else
+                disp("The target transform is not in range.")
+                modelJointAngles = currentJointAngles;
+            end
+        end
+        %% Function to obtain model joint angles from a desired end-effector transform with both ikine and ikcon
+        function [modelJointAngles_ikcon, modelJointAngles_ikine, modelGuessPose] = GetRobotPose(self, currentJointAngles, inputTransform)
+            % Use function to obtain an initial guess for inverse
+            % kinematics
+            [modelGuessPose, inBoundaryCheck] = self.GetGuessPose(currentJointAngles, inputTransform);
+            % Provided the input transform is in range, perform inverse
+            % kinematics with both ikine and ikcon. Guess pose typically takes
+            % care of most joint angle conditions that we care about for ikine.
+            if inBoundaryCheck == 1
+                % ikcon solution
+                try [modelJointAngles_ikcon, error, ~] = self.model.ikcon(inputTransform, modelGuessPose);
+                    % there are cases where guess pose fails and returns
+                    % complex solutions. Must ensure this is not the case:
+                    complexCheck = isreal(modelJointAngles_ikcon);
+                    if (complexCheck == 0)
+                        % if it is the case, provide the current pose as
+                        % the guess instead.
+                        [modelJointAngles_ikcon, error, ~] = self.model.ikcon(inputTransform, currentJointAngles);
+                    end
+                catch 
+                    disp("An error occurred when running ikcon. ")
+                    modelJointAngles_ikcon = currentJointAngles;
+                    error = 1;
+                end
+                % detect end-effector error with some threshold
+                if error > 0.05
+                    disp("The ikcon output transform may be significantly inaccurate.")
+                end
+                % ikine solution
+                try modelJointAngles_ikine = self.model.ikine(inputTransform, modelGuessPose);
+                    % there are cases where guess pose fails and returns
+                    % complex solutions. Must ensure this is not the case:
+                    complexCheck = isreal(modelJointAngles_ikine);
+                    if (complexCheck == 0)
+                        % if it is the case, provide the current pose as
+                        % the guess instead.
+                        mask = [1, 1, 1, 0, 0, 0];
+                        modelJointAngles_ikine = self.model.ikine(inputTransform, currentJointAngles, mask);
+                    end
+                catch
+                    disp("An error occurred when running ikine. ")
+                    modelJointAngles_ikine = currentJointAngles;
+                end
+            else
+                disp("The target transform is not in range.")
+                % Return the same initial joint configuration if the target
+                % is not in range
+                modelJointAngles_ikcon = currentJointAngles;
+                modelJointAngles_ikine = currentJointAngles;
+            end
+        end
+        %% Function to obtain a path of joint angles to a desired end-effector transform with ikcon
+        function modelJointPath = GetJointPathQT_Ikcon(self, currentJointAngles, inputTransform, steps)
             if nargin ~= 4
                 steps = self.defaultSteps;
             end
-            finalJointAngles = self.GetRobotPose(currentJointAngles, inputTransform);
+            finalJointAngles = self.GetRobotPose_Ikcon(currentJointAngles, inputTransform);
             modelJointPath = jtraj(currentJointAngles, finalJointAngles, steps);
             if modelJointPath(:, 1) > 0
                 modelJointPath(:, 1) = 0;
             end
+            if modelJointPath(:, 1) < self.model.qlim(1)
+                modelJointPath(:, 1) = self.model.qlim(1);
+            end
+        end
+        %% Function to obtain a path of joint angles to a desired end-effector transform with ikine
+        function modelJointPath = GetJointPathQT_Ikine(self, currentJointAngles, inputTransform, steps)
+            if nargin ~= 4
+                steps = self.defaultSteps;
+            end
+            finalJointAngles = self.GetRobotPose_Ikine(currentJointAngles, inputTransform);
+            modelJointPath = jtraj(currentJointAngles, finalJointAngles, steps);
+            if modelJointPath(:, 1) > 0
+                modelJointPath(:, 1) = 0;
+            end
+            if modelJointPath(:, 1) < self.model.qlim(1)
+                modelJointPath(:, 1) = self.model.qlim(1);
+            end
+        end
+        %% Function to obtain a path of joint angles to a desired end-effector transform with both ikine and ikcon
+        function modelJointPath = GetJointPathQT(self, currentJointAngles, inputTransform, steps)
+            % If steps are not specified, use the default steps 
+            if nargin ~= 4
+                steps = self.defaultSteps;
+            end
+            % Obtain solutions for ikcon and ikine of the final transform
+            [ikconJointAngles, ikineJointAngles, guessJointAngles] = self.GetRobotPose(currentJointAngles, inputTransform);
+            
+            % Begin final joint angle selection criteria:
+            % Requirement 1: ikine solution is within joint limits; check all joints
+            jointLimitRequirement = zeros(1, (self.model.n + 1));
+            for i = 1:self.model.n
+                lowerLimit = self.model.qlim(i,1);
+                upperLimit = self.model.qlim(i,2);
+                if (ikineJointAngles(i) < lowerLimit) || (ikineJointAngles(i) > upperLimit)
+                    jointLimitRequirement(i) = 0;
+                else
+                    jointLimitRequirement(i) = 1;
+                end
+            end
+            % Also check link5 = pi/2 - link3 - link4 within
+            % reasonable threshold
+            linkCheck = ikineJointAngles(5) + ikineJointAngles(3) + ikineJointAngles(4) - pi/2;
+            if (linkCheck > 0.05) || (linkCheck < -0.05)
+                jointLimitRequirement(end) = 0;
+            else
+                jointLimitRequirement(end) = 1;
+            end
+            % Requirement 2: ikine solution is closer to desired end-effector
+            % position than ikcon solution - or they are both very close
+            ikineEndEffTr = self.model.fkine(ikineJointAngles);
+            ikconEndEffTr = self.model.fkine(ikconJointAngles);
+            % Calculate distances
+            ikineDist = sqrt((ikineEndEffTr(1,4) - inputTransform(1,4))^2 + (ikineEndEffTr(2,4) - inputTransform(2,4))^2 + (ikineEndEffTr(3,4) - inputTransform(3,4))^2);
+            ikconDist = sqrt((ikconEndEffTr(1,4) - inputTransform(1,4))^2 + (ikconEndEffTr(2,4) - inputTransform(2,4))^2 + (ikconEndEffTr(3,4) - inputTransform(3,4))^2);
+            % Determine the case based on some threshold; smallest dist = best
+            if ((ikineDist - ikconDist) < -0.01)
+                distanceRequirement = 1;
+            elseif ((ikineDist - ikconDist) > 0.01)
+                distanceRequirement = 0;
+            else % ie. distances are pretty much the same, within threshold
+                distanceRequirement = 2;
+            end
+            % Requirement 3: ikine solution had a closer link 2 angle to the value of the azimuth
+            % found when making a guess for the pose (an ideal azimuth) than ikcon solution
+            idealAzimuth = guessJointAngles(2);
+            if (abs(ikineJointAngles(2) - idealAzimuth) < abs(ikconJointAngles(2) - idealAzimuth))
+                angleRequirement = 1;
+            else % ie. ikcon solution closer to ideal azimuth than ikine
+                angleRequirement = 0;
+            end
+            % Check on requirement 1:
+            if all(jointLimitRequirement == 1)
+                % Check on requirement 2:
+                if (distanceRequirement == 1)
+                    selectedJointAngles = ikineJointAngles;
+                    disp("Using Ikine")
+                elseif (distanceRequirement == 2)
+                    % Check on requirement 3:
+                    if (angleRequirement == 1)
+                        selectedJointAngles = ikineJointAngles;
+                        disp("Using Ikine")
+                    else % ie. angle requirement == 0
+                        selectedJointAngles = ikconJointAngles;
+                        disp("Using Ikcon")
+                    end
+                else % ie. dist requirement == 0
+                    selectedJointAngles = ikconJointAngles;
+                    disp("Using Ikcon")
+                end
+            else % ie. joint requirement == 0
+                selectedJointAngles = ikconJointAngles;
+                disp("Using Ikcon")
+            end
+            
+            % Begin joint angle trajectory generation
+            modelJointPath = jtraj(currentJointAngles, selectedJointAngles, steps);
+            % Ensure that the linear rail joint limits are not breached in
+            % the trajectory even by a small margin
+            modelJointPath((modelJointPath(:, 1) > self.model.qlim(1,2)), 1) = 0;
+            modelJointPath((modelJointPath(:, 1) < self.model.qlim(1,1)), 1) = self.model.qlim(1,1);
         end
     end    
 end
