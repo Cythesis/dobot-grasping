@@ -153,7 +153,7 @@ classdef Dobot < handle
                 % The linear rail must be used to reach the point. Create a
                 % new guess link1 location along the rail for the guess
                 relativeY = inputTransform(2,4) - self.model.base(2,4);
-                if relativeY < 0.265 % Limit at 0.265 for the sake of the guess pose
+                if relativeY > 0.265 % Limit at 0.265 for the sake of the guess pose
                     relativeY = 0.265;
                 end
                 newBaseDX = sqrt((0.265)^2 - (relativeY)^2);
@@ -326,6 +326,7 @@ classdef Dobot < handle
                         % if it is the case, provide the current pose as
                         % the guess instead.
                         [modelJointAngles_ikcon, error, ~] = self.model.ikcon(inputTransform, currentJointAngles);
+                        disp("Model pose guess was complex")
                     end
                 catch 
                     disp("An error occurred when running ikcon. ")
@@ -344,6 +345,7 @@ classdef Dobot < handle
                     if (complexCheck == 0)
                         % if it is the case, provide the current pose as
                         % the guess instead.
+                        disp("Model guess pose was complex")
                         mask = [1, 1, 1, 0, 0, 0];
                         modelJointAngles_ikine = self.model.ikine(inputTransform, currentJointAngles, mask);
                     end
