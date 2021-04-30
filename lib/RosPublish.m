@@ -1,4 +1,4 @@
-classdef rosPublish
+classdef RosPublish
     properties
         
     end
