@@ -17,6 +17,54 @@
 % LINK1-5 Max Velocity: 320deg/s
 % LINK6 Max Velocity: 480deg/s
 
+% CALLABLE CLASS FUNCTIONS:
+%
+% Constructor function:
+% self = Dobot(baseTransformInput, workspaceSizeInput)
+%           - Input arguments optional
+% 
+% Function to calculate a new linear rail position for a given point:
+% [linRailPos, updatedJointAngles] = GetLinRailPos(currentJointAngles, inputTransform)
+%           - Must input 1x6 joint angle matrix and 4x4 global point transform
+%
+% Function to perform inverse kinematics (not including linear rail) to a
+% given point from current position:
+% [finalJointAngles, finalSimulationJointAngles] = GetLocalPose(currentJointAngles, inputTransform)
+%           - Must input 1x6 joint angle matrix and 4x4 global point transform
+%
+% Function to generate a path between two known joint positions; for simulation
+% jointPath = GetJointPathQQ(currentJointAngles, finalJointAngles, steps)
+%           - Must input 1x6 joint angle matrix for initial and final poses
+%           - steps input optional
+%
+% Function to convert the model joint angles into real Dobot joint angles
+% to be sent to the robot
+% [realJointAngles, realLinRailPos] = GetRealJointAngles(modelJointAngles, modelLinRailPos)
+%           - Must input 1x5 joint angle matrix (exclude linear rail) and
+%           linear rail position as a scalar value
+%
+% Function to generate a generic guess pose for  given point, to be used
+% for inverse kinematics calculations
+% [modelGuessPose, inBoundaryCheck] = GetGuessPose(currentJointAngles, inputTransform)
+%           - Must input 1x6 joint angle matrix and 4x4 global point transform
+% 
+% Function to calculate the azimuth angle to a point relative to the robot
+% azimuth = GetAzimuth(relativeTransform)
+%           - Must 4x4 input point relative to robot's link 1 (ie. base that
+%           slides along the linear rail
+% 
+% Function to check if a relative point is in the immediate range of the
+% robot (ie. not including use of the linear rail)
+% inRange = CheckInRange(relativeTransform)
+%           - Must 4x4 input point relative to robot's link 1 (ie. base that
+%           slides along the linear rail
+%
+% Function to check if a global point is within the workspace of the robot
+% (range including the linear rail)
+% inBoundary = CheckInBounds(inputTransform)
+%           - Must input 4x4 global point transform
+% 
+
 classdef Dobot < handle
     
     properties
@@ -32,12 +80,12 @@ classdef Dobot < handle
         % model2 will not be used for animation.
         model2;
         % Set some default joint states for linear rail model
-        jointStateDefault = [0, deg2rad([0, 45, 45, 0, 0])];
-        jointStateDefault2 = deg2rad([0, 45, 45, 0, 0]);
+        jointStateDefault = [0, deg2rad([0, 5, 115, -30, 0])];
+        jointStateDefault2 = deg2rad([0, 5, 115, -30, 0]);
         % Give a name for reference
         name = 'Dobot';
         % Set a workspace size
-        workspace;
+        workspaceSize;
         % Set some range parameters for boundary checks: 
         % Ie. in range if in top left circle 1 and also circle 2, but while not in circle 3 and 4. 
         % Distances to circle origins measured from origin of Dobot's link 1
@@ -52,23 +100,23 @@ classdef Dobot < handle
         
     methods
         %% Constructor function
-        function self = Dobot(baseTransformInput, workspaceInput)
+        function self = Dobot(baseTransformInput, workspaceSizeInput)
             % Create default case for insufficient input arguments, extend
             % if more arguments are included
             defaultTransform = transl(0,0,0) * rpy2tr(0,0,0);
             defaultWorkspace = [-1, 1, -1, 1, 0, 1];
             switch nargin
                 case 2
-                    self.workspace = workspaceInput;
+                    self.workspaceSize = workspaceSizeInput;
                 case 1
                     if isempty(baseTransformInput)
                         baseTransformInput = defaultTransform;
                     elseif isempty(workspaceInput)
-                        self.workspace = defaultWorkspace;
+                        self.workspaceSize = defaultWorkspace;
                     end
                 case 0
                     baseTransformInput = defaultTransform;
-                    self.workspace = defaultWorkspace;
+                    self.workspaceSize = defaultWorkspace;
             end
             % Run constructor functions
             self.GetDobot(baseTransformInput);
@@ -118,7 +166,7 @@ classdef Dobot < handle
                 self.model.points{i+1} = vertexData;
             end
             % Display on 3D plot
-            self.model.plot3d(self.jointStateDefault, 'noarrow', 'workspace', self.workspace);
+            self.model.plot3d(self.jointStateDefault, 'noarrow', 'workspace', self.workspaceSize);
             if isempty(findobj(get(gca,'Children'),'Type','Light'))
                 camlight
             end  
@@ -280,7 +328,7 @@ classdef Dobot < handle
                     ikineJointAngles = self.model2.ikine(inputTransform, model2CurrentJointAngles, mask);
                 end
             catch
-                disp("An error occurred when running ikine. ")
+                % disp("An error occurred when running ikine. ")
                 ikineJointAngles = model2CurrentJointAngles;
             end
             % Now we have an ikine and ikcon solution. Pick one that is most suitable:
@@ -338,15 +386,15 @@ classdef Dobot < handle
                         disp("Using Ikine")
                     else % ie. angle requirement == 0
                         finalJointAngles = ikconJointAngles;
-                        disp("Using Ikcon")
+                        % disp("Using Ikcon")
                     end
                 else % ie. dist requirement == 0
                     finalJointAngles = ikconJointAngles;
-                    disp("Using Ikcon")
+                    % disp("Using Ikcon")
                 end
             else % ie. joint requirement == 0
                 finalJointAngles = ikconJointAngles;
-                disp("Using Ikcon")
+                % disp("Using Ikcon")
             end
             % If at the beginning the point was mirrored, reset the base
             % rotation back to its correct side:
