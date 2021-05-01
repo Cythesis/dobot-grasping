@@ -9,7 +9,6 @@ classdef RosPublish
             point = rosmessage('trajectory_msgs/JointTrajectoryPoint');
             point.Positions = pos;
             msg.Points(1) = point;
-            pause(1)
             send(channel_1,msg);
         end
         
