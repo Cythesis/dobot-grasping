@@ -306,13 +306,19 @@ classdef Dobot < handle
             model2CurrentJointAngles = currentJointAngles(2:end);
             % If the transform has passed the above checks, then it is okay
             % to proceed and find a model pose without the linear rail (model2)
-            try [ikconJointAngles, ~, ~] = self.model2.ikcon(inputTransform, model2GuessPose);
+            try [ikconJointAngles, err, ~] = self.model2.ikcon(inputTransform, model2GuessPose);
                 % there are cases where guess pose fails and returns complex solutions. Must ensure this is not the case:
                 complexCheck = isreal(ikconJointAngles);
-                if (complexCheck == 0)
+                disp("Err: " + err)
+                if (complexCheck == 0) || (err > 0.1)
                     % if it is the case, provide the current pose as the guess instead.
-                    [ikconJointAngles, ~, ~] = self.model2.ikcon(inputTransform, model2CurrentJointAngles);
-                    disp("Model pose guess was complex")
+                    [tempIkconJointAngles, err2, ~] = self.model2.ikcon(inputTransform, model2CurrentJointAngles);
+                    if (err2 < err)
+                        ikconJointAngles = tempIkconJointAngles;
+                    end
+                    if (complexCheck == 0)
+                        disp("Model pose guess was complex")
+                    end
                 end
             catch 
                 disp("An error occurred when running ikcon. ")
@@ -328,8 +334,12 @@ classdef Dobot < handle
                     ikineJointAngles = self.model2.ikine(inputTransform, model2CurrentJointAngles, mask);
                 end
             catch
-                % disp("An error occurred when running ikine. ")
-                ikineJointAngles = model2CurrentJointAngles;
+                mask = [1, 1, 1, 0, 0, 0];
+                try ikineJointAngles = self.model2.ikine(inputTransform, model2CurrentJointAngles, mask);
+                catch
+                    disp("An error occurred when running ikine. ")
+                    ikineJointAngles = model2CurrentJointAngles;
+                end
             end
             % Now we have an ikine and ikcon solution. Pick one that is most suitable:
             % Requirement 1: ikine solution is within joint limits; check all joints
@@ -358,9 +368,9 @@ classdef Dobot < handle
             ikineDist = sqrt((ikineEndEffTr(1,4) - inputTransform(1,4))^2 + (ikineEndEffTr(2,4) - inputTransform(2,4))^2 + (ikineEndEffTr(3,4) - inputTransform(3,4))^2);
             ikconDist = sqrt((ikconEndEffTr(1,4) - inputTransform(1,4))^2 + (ikconEndEffTr(2,4) - inputTransform(2,4))^2 + (ikconEndEffTr(3,4) - inputTransform(3,4))^2);
             % Determine the case based on some threshold; smallest dist = best
-            if ((ikineDist - ikconDist) < -0.01)
+            if ((ikineDist - ikconDist) < -0.002)
                 distanceRequirement = 1;
-            elseif ((ikineDist - ikconDist) > 0.01)
+            elseif ((ikineDist - ikconDist) > 0.002)
                 distanceRequirement = 0;
             else % ie. distances are pretty much the same, within threshold
                 distanceRequirement = 2;
@@ -378,23 +388,23 @@ classdef Dobot < handle
                 % Check on requirement 2:
                 if (distanceRequirement == 1)
                     finalJointAngles = ikineJointAngles;
-                    disp("Using Ikine")
+                     disp("Using Ikine")
                 elseif (distanceRequirement == 2)
                     % Check on requirement 3:
                     if (angleRequirement == 1)
                         finalJointAngles = ikineJointAngles;
-                        disp("Using Ikine")
+                         disp("Using Ikine")
                     else % ie. angle requirement == 0
                         finalJointAngles = ikconJointAngles;
-                        % disp("Using Ikcon")
+                         disp("Using Ikcon")
                     end
                 else % ie. dist requirement == 0
                     finalJointAngles = ikconJointAngles;
-                    % disp("Using Ikcon")
+                     disp("Using Ikcon")
                 end
             else % ie. joint requirement == 0
                 finalJointAngles = ikconJointAngles;
-                % disp("Using Ikcon")
+                 disp("Using Ikcon")
             end
             % If at the beginning the point was mirrored, reset the base
             % rotation back to its correct side:
