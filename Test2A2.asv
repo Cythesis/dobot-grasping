@@ -1,0 +1,6 @@
+close all; clear all; clc; clf;
+
+workspace = Workspace();
+
+workspace.AddContainer('Salt', 1);
+workspace.con

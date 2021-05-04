@@ -21,18 +21,20 @@ classdef Workspace < handle
         % Frame
         frameOffset = [0, 0.042, -0.012];
         shelf1Height = 0.075;
-        shelf1YOffset = 0.1924;
+        shelf1YOffset = 0.0924;
         shelf2Height = 0.205;
         shelf2YOffset = 0.225;
         shelfXOffset = 0.02375;
         % Containers
-        maxNumContainers = 16;
+        maxNumContainers = 10;
         containerStorage = [];
         containerHeights = [0.056, 0.084, 0.085, 0.045];
         currentNumContainers = 0;
         shelf1NumStored = 0;
         shelf2NumStored = 0;
         maxContainerDia = 0.11875;
+        shelfLocations = [];
+        shelfFilledIndex = zeros(2, 5);
     end
 
     methods  
@@ -65,7 +67,12 @@ classdef Workspace < handle
             end
            
            self.GetWorkspace(dobotBaseTransform);
-           
+           for i = 1:(self.maxNumContainers/2)
+               self.shelfLocations(i).shelf1 = [(-self.shelfXOffset - (self.maxContainerDia/2) - ((i-1) * self.maxContainerDia)) ...
+                                                    , self.shelf1YOffset + (self.maxContainerDia/2), self.shelf1Height];
+               self.shelfLocations(i).shelf2 = [(-self.shelfXOffset - (self.maxContainerDia/2) - ((i-1) * self.maxContainerDia)) ...
+                                                    , self.shelf2YOffset + (self.maxContainerDia/2), self.shelf2Height];
+           end
        end
        
        %% Workspace plotting function
@@ -86,8 +93,6 @@ classdef Workspace < handle
            camlight(1, 30);
            view(45, 30);
        end
-       %% Test function
-      
        %% Function to run when adding container; returns the new container's storage transform
        function [storageLocation, containerIndex] = AddContainer(self, containerLabel, containerType)
            if (containerType == 1) || (containerType == 2)
@@ -117,6 +122,7 @@ classdef Workspace < handle
             self.containerStorage(containerIndex).model.faces = {faceData, []};
             self.containerStorage(containerIndex).model.points = {vertexData, []};
             plot3d(self.containerStorage(containerIndex).model, 0,'noarrow','workspace',self.workspaceSize,'delay',0);
+            hold on
             if isempty(findobj(get(gca,'Children'),'Type','Light'))
                 camlight
             end 
@@ -136,13 +142,37 @@ classdef Workspace < handle
        function storageLocation = GetNewStorageLocation(self, storageIndex)
             containerType = self.containerStorage(storageIndex).type;
             if (containerType == 1) || (containerType == 4) % Use shelf 2
-                storeHeight = self.shelf2Height + self.containerHeights(containerType);
-                storeYOffset = self.shelf2YOffset + (self.maxContainerDia/2);
-                storeXOffset = -self.shelfXOffset - (self.maxContainerDia/2) - (self.shelf2NumStored * self.maxContainerDia);
+                shelfIndex = 0;
+                for i = 1:(self.maxNumContainers/2)
+                    if (self.shelfFilledIndex(2, i) == 0)
+                        shelfIndex = i;
+                        self.shelfFilledIndex(2, i) = 1;
+                        break
+                    end
+                end
+                if shelfIndex == 0
+                    disp("Error: shelf was full when finding shelf location." )
+                    return
+                end
+                storeHeight = self.shelfLocations(shelfIndex).shelf2(3) + self.containerHeights(containerType);
+                storeYOffset = self.shelfLocations(shelfIndex).shelf2(2);
+                storeXOffset = self.shelfLocations(shelfIndex).shelf2(1);
             else % Use shelf 1
-                storeHeight = self.shelf1Height + self.containerHeights(containerType);
-                storeYOffset = self.shelf1YOffset + (self.maxContainerDia/2);
-                storeXOffset = -self.shelfXOffset - (self.maxContainerDia/2) - (self.shelf1NumStored * self.maxContainerDia);
+                shelfIndex = 0;
+                for i = 1:(self.maxNumContainers/2)
+                    if (self.shelfFilledIndex(1, i) == 0)
+                        shelfIndex = i;
+                        self.shelfFilledIndex(1, i) = 1;
+                        break
+                    end
+                end
+                if shelfIndex == 0
+                    disp("Error: shelf was full when finding shelf location." )
+                    return
+                end
+                storeHeight = self.shelfLocations(shelfIndex).shelf1(3) + self.containerHeights(containerType);
+                storeYOffset = self.shelfLocations(shelfIndex).shelf1(2);
+                storeXOffset = self.shelfLocations(shelfIndex).shelf1(1);
             end
             storageLocation = transl(storeXOffset, storeYOffset, storeHeight);
        end

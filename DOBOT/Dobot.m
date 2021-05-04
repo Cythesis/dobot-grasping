@@ -82,6 +82,7 @@ classdef Dobot < handle
         % Set some default joint states for linear rail model
         jointStateDefault = [0, deg2rad([0, 5, 115, -30, 0])];
         jointStateDefault2 = deg2rad([0, 5, 115, -30, 0]);
+        jointStateUp = deg2rad([0, 5, 50, 35, 0]);
         % Give a name for reference
         name = 'Dobot';
         % Set a workspace size
@@ -309,7 +310,7 @@ classdef Dobot < handle
             try [ikconJointAngles, err, ~] = self.model2.ikcon(inputTransform, model2GuessPose);
                 % there are cases where guess pose fails and returns complex solutions. Must ensure this is not the case:
                 complexCheck = isreal(ikconJointAngles);
-                disp("Err: " + err)
+                % disp("Err: " + err)
                 if (complexCheck == 0) || (err > 0.1)
                     % if it is the case, provide the current pose as the guess instead.
                     [tempIkconJointAngles, err2, ~] = self.model2.ikcon(inputTransform, model2CurrentJointAngles);
@@ -388,23 +389,23 @@ classdef Dobot < handle
                 % Check on requirement 2:
                 if (distanceRequirement == 1)
                     finalJointAngles = ikineJointAngles;
-                     disp("Using Ikine")
+                     %disp("Using Ikine")
                 elseif (distanceRequirement == 2)
                     % Check on requirement 3:
                     if (angleRequirement == 1)
                         finalJointAngles = ikineJointAngles;
-                         disp("Using Ikine")
+                         %disp("Using Ikine")
                     else % ie. angle requirement == 0
                         finalJointAngles = ikconJointAngles;
-                         disp("Using Ikcon")
+                         %disp("Using Ikcon")
                     end
                 else % ie. dist requirement == 0
                     finalJointAngles = ikconJointAngles;
-                     disp("Using Ikcon")
+                     %disp("Using Ikcon")
                 end
             else % ie. joint requirement == 0
                 finalJointAngles = ikconJointAngles;
-                 disp("Using Ikcon")
+                 %disp("Using Ikcon")
             end
             % If at the beginning the point was mirrored, reset the base
             % rotation back to its correct side:
@@ -440,7 +441,7 @@ classdef Dobot < handle
             realLinRailPos = modelLinRailPos * -1; % Reverse direction of linear rail (robot toolbox only likes negative prismatic values)
             realJointAngles(1, 1) = modelJointAngles(1);
             realJointAngles(1, 2) = modelJointAngles(2);    % Angle does not require adjustment
-            realJointAngles(1, 3) = modelJointAngles(3) + modelJointAngles(3) - (pi/2); % adjust, accounting for mechanical linkage
+            realJointAngles(1, 3) = modelJointAngles(3) + modelJointAngles(2) - (pi/2); % adjust, accounting for mechanical linkage
             realJointAngles(1, 4) = modelJointAngles(5);    % Servo angle is the same (joint 5 ommitted) 
         end
         %% Function to produce a default guess pose for a given transform

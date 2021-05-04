@@ -131,7 +131,7 @@ classdef Controller < handle
             %% Lift the container into a position above the respective shelf to clear any containers stored
             %> TODO: ASK ROSCOM FOR CURRENT JOINT ANGLES OF DOBOT, UPDATE currentJointAngles
             if (containerType == 1) || (containerType == 4)
-                targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0.125,0,0);
+                targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
                 targetTransform(3,4) = targetStorageTransform(3,4) + 0.1;
             else
                 targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
@@ -154,19 +154,17 @@ classdef Controller < handle
                 currentJointAngles = self.workspace1.Dobot1.model.getpos;
             end
             
-            %% Move the container into a position ready to be moved into storage without fouling other containers
+            %%
             %> TODO: ASK ROSCOM FOR CURRENT JOINT ANGLES OF DOBOT, UPDATE currentJointAngles
             if (containerType == 1) || (containerType == 4)
                 targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
                 targetTransform(1,4) = targetStorageTransform(1,4);
-                linRailPos = (targetTransform(1,4) - self.workspace1.Dobot1.model.base(1,4)) * -1;
-                updatedJointAngles = [linRailPos, currentJointAngles(2:end)];
             else
                 targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
                 targetTransform(1,4) = targetStorageTransform(1,4);
-                targetTransform(2,4) = targetStorageTransform(2,4);
-                [linRailPos, updatedJointAngles] = self.workspace1.Dobot1.GetLinRailPos(currentJointAngles, targetTransform);
             end
+            linRailPos = (targetTransform(1,4) - self.workspace1.Dobot1.model.base(1,4)) * -1;
+            updatedJointAngles = [linRailPos, currentJointAngles(2:end)];
             if linRailPos ~= currentJointAngles(1)
                 if (self.workspace1.simulationToggle == 1)
                     self.workspace1.AnimateSimulatenously(containerIndex, currentJointAngles, updatedJointAngles, self.dobotShortSteps);
@@ -183,7 +181,6 @@ classdef Controller < handle
                 currentJointAngles = self.workspace1.Dobot1.model.getpos;
             end
             
-            %% Move the container into the final position
             %> TODO: ASK ROSCOM FOR CURRENT JOINT ANGLES OF DOBOT, UPDATE currentJointAngles
             targetTransform = targetStorageTransform;
             [linRailPos, updatedJointAngles] = self.workspace1.Dobot1.GetLinRailPos(currentJointAngles, targetTransform);
@@ -203,7 +200,6 @@ classdef Controller < handle
                 currentJointAngles = self.workspace1.Dobot1.model.getpos;
             end
             
-            %% Turn off suction cup vacuum and move the end-effector away from the container
             %> TODO: ASK ROSCOM FOR CURRENT JOINT ANGLES OF DOBOT, UPDATE currentJointAngles
             %> TODO: TELL ROSCOM TO TURN OFF SUCTION VACUUM
             targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0, -0.045, 0.03);
@@ -214,6 +210,7 @@ classdef Controller < handle
                 self.workspace1.AnimateDobot(currentJointAngles, targetSimulationJointAngles, self.dobotShortSteps);
                 currentJointAngles = self.workspace1.Dobot1.model.getpos;
             end
+            
         end
         
         function RetrieveContainer()

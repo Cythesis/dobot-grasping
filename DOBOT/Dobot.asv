@@ -309,13 +309,7 @@ classdef Dobot < handle
             try [ikconJointAngles, err, ~] = self.model2.ikcon(inputTransform, model2GuessPose);
                 % there are cases where guess pose fails and returns complex solutions. Must ensure this is not the case:
                 complexCheck = isreal(ikconJointAngles);
-                disp("Err: " + err)
-                if (err > 0.001) && (err <= 0.1)
-                    [tempIkconJointAngles, err2, ~] = self.model2.ikcon(inputTransform, model2CurrentJointAngles);
-                    if (err2 < err)
-                        ikconJointAngles = tempIkconJointAngles;
-                    end
-                end
+                % disp("Err: " + err)
                 if (complexCheck == 0) || (err > 0.1)
                     % if it is the case, provide the current pose as the guess instead.
                     [tempIkconJointAngles, err2, ~] = self.model2.ikcon(inputTransform, model2CurrentJointAngles);

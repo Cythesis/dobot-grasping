@@ -23,8 +23,7 @@ classdef RosPublish < handle
             channel_1 = rospublisher('/target_rail_position','std_msgs/Float64');
             msg = rosmessage(channel_1);
             point = rosmessage('std_msgs/Float64');
-            point = pos;
-            msg.Position = point;
+            point.
             send(channel_1,msg);
         end
         
