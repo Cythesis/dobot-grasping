@@ -3,11 +3,6 @@ classdef RosPublish
         
     end
     methods
-        
-        function self = RosPublish()
-            
-        end
-        
         function sendTraj(self, pos)
             channel_1 = rospublisher("/dobot_magician/target_joint_states","trajectory_msgs/JointTrajectory");
             msg = rosmessage(channel_1);
