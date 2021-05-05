@@ -10,6 +10,7 @@ classdef Workspace < handle
         Dobot1;
         initialJointAngles;
         simulationToggle = 1;
+        realRobotToggle = 0;
         % Physical dimensions which can be called upon:
         % Platform
         platformOffset = [0, 0, 0];
@@ -23,8 +24,10 @@ classdef Workspace < handle
         shelf1Height = 0.075;
         shelf1YOffset = 0.0924;
         shelf2Height = 0.205;
-        shelf2YOffset = 0.225;
-        shelfXOffset = 0.02375;
+        shelf2YOffset = 0.24;
+        shelfXOffset = 0.06125;
+        % Kinect
+        kinectOffset = [0, 0.217, 0.88275];
         % Containers
         maxNumContainers = 10;
         containerStorage = [];
@@ -39,40 +42,29 @@ classdef Workspace < handle
 
     methods  
        %% Constructor function
-       function self = Workspace(baseTransformInput, workspaceInput, simulationToggle)
-           switch nargin
-                case 3
-                    self.workspaceSize = workspaceInput;
-                    dobotBaseTransform = baseTransformInput;
-                    self.simulationToggle = simulationToggle;
-                case 2
-                    if isempty(workspaceInput)
-                        self.workspaceSize = self.defaultWorkspaceSize;
-                        dobotBaseTransform = baseTransformInput;
-                    elseif isempty(baseTransformInput)
-                        self.workspaceSize = workspaceInput;
-                        dobotBaseTransform = self.defaultDobotBaseTransform;
-                    end
-                case 1
-                    if isempty(workspaceInput)
-                        self.workspaceSize = self.defaultWorkspaceSize;
-                        dobotBaseTransform = baseTransformInput;
-                    elseif isempty(baseTransformInput)
-                        self.workspaceSize = workspaceInput;
-                        dobotBaseTransform = self.defaultDobotBaseTransform;
-                    end
-                case 0
-                    self.workspaceSize = self.defaultWorkspaceSize;
-                    dobotBaseTransform = self.defaultDobotBaseTransform;
+       function self = Workspace(realRobotToggleInput, simulationToggleInput, baseTransformInput, workspaceInput)
+            if (nargin < 4)
+                self.workspaceSize = self.defaultWorkspaceSize;
+                dobotBaseTransform = self.defaultDobotBaseTransform;
+            elseif (nargin < 2)
+                disp("You must input a toggle for whether you are using a real robot and another " ...
+                        + " toggle to determine if you wish to run a simulation");
+                    return
+            else
+                self.workspaceSize = workspaceInput;
+                dobotBaseTransform = baseTransformInput;
             end
+            
+            self.simulationToggle = simulationToggleInput;
+            self.realRobotToggle = realRobotToggleInput;
            
-           self.GetWorkspace(dobotBaseTransform);
-           for i = 1:(self.maxNumContainers/2)
+            self.GetWorkspace(dobotBaseTransform);
+            for i = 1:(self.maxNumContainers/2)
                self.shelfLocations(i).shelf1 = [(-self.shelfXOffset - (self.maxContainerDia/2) - ((i-1) * self.maxContainerDia)) ...
                                                     , self.shelf1YOffset + (self.maxContainerDia/2), self.shelf1Height];
                self.shelfLocations(i).shelf2 = [(-self.shelfXOffset - (self.maxContainerDia/2) - ((i-1) * self.maxContainerDia)) ...
                                                     , self.shelf2YOffset + (self.maxContainerDia/2), self.shelf2Height];
-           end
+            end
        end
        
        %% Workspace plotting function
@@ -84,6 +76,7 @@ classdef Workspace < handle
            PlaceObject('Frame.ply', self.frameOffset);
            PlaceObject('Platform.ply', self.platformOffset);
            PlaceObject('ConveyorBelt.ply', self.conveyorOffset);
+           PlaceObject('Kinect.ply', self.kinectOffset);
            
            self.Dobot1 = Dobot(dobotBaseTransform, self.workspaceSize);
            self.initialJointAngles = self.Dobot1.model.getpos;
@@ -174,6 +167,7 @@ classdef Workspace < handle
                 storeYOffset = self.shelfLocations(shelfIndex).shelf1(2);
                 storeXOffset = self.shelfLocations(shelfIndex).shelf1(1);
             end
+            self.containerStorage(storageIndex).shelfIndex = shelfIndex;
             storageLocation = transl(storeXOffset, storeYOffset, storeHeight);
        end
        %% Function to update container storage variables, only called by AddContainer() function
