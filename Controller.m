@@ -8,8 +8,8 @@ classdef Controller < handle
         % Default control constants
         springStroke = 0.0083;
         conveyorSteps = 100;
-        dobotShortSteps = 20;
-        dobotShortestSteps = 10;
+        dobotShortSteps = 15;
+        dobotShortestSteps = 5;
         dobotLongSteps = 100;
         dobotMidSteps = 50;
         
@@ -259,11 +259,79 @@ classdef Controller < handle
         end
         
         function JogPosition(self, jogAmount, jogParameter)
+            moveLinRail = 0;
+            switch jogParameter
+                case 0 % LINEAR RAIL
+                    changeTransform = eye(4);
+                    moveLinRail = 1;
+                case 1 % X AXIS
+                    changeTransform = transl(0,jogAmount,0);
+                case 2 % Y AXIS
+                    changeTransform = transl(-jogAmount,0,0);
+                case 3 % Z AXIS
+                    changeTransform = transl(0,0,jogAmount);
+                case 4 % ROLL
+                    changeTransform = rpy2tr(deg2rad(jogAmount),0,0);
+                case 5 % PITCH
+                    changeTransform = rpy2tr(0,deg2rad(jogAmount),0);
+                case 6 % YAW
+                    changeTransform = rpy2tr(0,0,deg2rad(jogAmount));
+                otherwise
+                    disp("Invalid jog parameter input. ")
+                    return
+            end
             
+            if (self.workspace1.simulationToggle == 1)
+                currentJointAngles = self.workspace1.Dobot1.model.getpos;
+                currentTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
+                if moveLinRail == 0
+                    targetTransform = currentTransform * changeTransform;
+                    [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
+                    currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
+                else
+                    linRailPos = currentJointAngles(1) + jogAmount;
+                    currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
+                end
+            end
+            if (self.workspace1.realRobotToggle == 1)
+                %> TODO: Get current joint angles and send end effector command to Dobot for position
+            end
         end
         
         function JogJoint(self, jogAmount, jogParameter)
+            moveLinRail = 0;
+            switch jogParameter
+                case 0 % LINEAR RAIL
+                    moveLinRail = 1;
+                case 1 % Base joint
+                    joint = 1;
+                case 2 % Forearm
+                    joint = 2;
+                case 3 % Rear arm
+                    joint = 3;
+                case 4 % Servo
+                    joint = 5;
+                otherwise
+                    disp("Invalid jog parameter input. ")
+                    return
+            end
             
+            if (self.workspace1.simulationToggle == 1)
+                currentJointAngles = self.workspace1.Dobot1.model.getpos;
+                if moveLinRail == 0
+                    jogAmount = deg2rad(jogAmount);
+                    targetJointAngles = currentJointAngles(2:end);
+                    targetJointAngles(joint) = targetJointAngles(joint) + jogAmount;
+                    targetJointAngles(4) = pi/2 - targetJointAngles(3) - targetJointAngles(2);
+                    currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
+                else
+                    linRailPos = currentJointAngles(1) + jogAmount;
+                    currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
+                end
+            end
+            if (self.workspace1.realRobotToggle == 1)
+                %> TODO: Get current joint angles and send end effector command to Dobot for position
+            end
         end
         
         
