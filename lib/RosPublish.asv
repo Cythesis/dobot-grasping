@@ -10,7 +10,6 @@ classdef RosPublish < handle
         toolStatePub;
         railStatusPub;
         railPosPub;
-        beltPub;
         
         % Publisher messages
         targetJointMsg;
@@ -19,13 +18,12 @@ classdef RosPublish < handle
         toolStateMsg;
         railStatusMsg;
         railPosMsg;
-        beltMsg;
     end
     methods(Access = public)
         
         function self = RosPublish()
             % Create ros subscribers
-            self.arPoseSub = rossubscriber('/tf',@arPoseCallback);
+            self.arPoseSub = rossubscriber('/tf',arPoseCallback);
             % Create ros publishers
             [self.targetJointPub,self.targetJointMsg] = rospublisher('/dobot_magician/target_joint_states');
             [self.targetPosePub,self.targetPoseMsg] = rospublisher('/dobot_magician/target_end_effector_pose');
@@ -33,7 +31,6 @@ classdef RosPublish < handle
             [self.toolStatePub, self.toolStateMsg] = rospublisher('/dobot_magician/target_tool_state');
             [self.railStatusPub, self.railStatusMsg] = rospublisher('/dobot_magician/target_rail_status');
             [self.railPosPub,self.railPosMsg] = rospublisher('/dobot_magician/target_rail_position');
-            [self.beltPub,self.beltMsg] = rospublisher('/dobot_magician/target_e_motor_state');
         end
         
         function MoveJoint(self, joint)                                     % Message type joint = [a,b,c,d];
@@ -76,7 +73,7 @@ classdef RosPublish < handle
            send(self.railPosPub,self.railPosMsg);
        end
        
-       function [ID, transform] = GetCurrentArPose(self)
+       function [ID, pose, euler] = GetCurrentArPose(self)
            msg = self.arPoseSub.LatestMessage;
            
            ID = msg.Transforms.ChildFrameId;
@@ -91,15 +88,8 @@ classdef RosPublish < handle
            rotation = msg.Transforms.Transform.Rotation;
            quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
            euler = quat2eul(quaternion);
-           transform = transl(pose(1),pose(2),pose(2)) * rpy2tr(euler(1),euler(2),euler(3),euler(4));
+           
        end
-       
-       function BeltVelocity(self,enabled,velocity)
-            self.beltMsg.Data = [enabled,velocity];
-            send(self.beltPub,self.beltMsg);
-       end
-       
-    end 
-
+    end
 end
 
