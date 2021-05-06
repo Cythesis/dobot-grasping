@@ -2,6 +2,8 @@ classdef RosPublish < handle
     properties(Access = private)
         % Subscriber objects
         arPoseSub;
+        jointStateSub;
+        railStateSub;
         
         % Publisher objects 
         targetJointPub;
@@ -26,6 +28,8 @@ classdef RosPublish < handle
         function self = RosPublish()
             % Create ros subscribers
 %             self.arPoseSub = rossubscriber('/tf',@arPoseCallback);
+            self.jointStateSub = rossubscriber('/dobot_magician/joint_states');
+            self.railStateSub = rossubscriber('/dobot_magician/rail_position');
             % Create ros publishers
             [self.targetJointPub,self.targetJointMsg] = rospublisher('/dobot_magician/target_joint_states');
             [self.targetPosePub,self.targetPoseMsg] = rospublisher('/dobot_magician/target_end_effector_pose');
@@ -93,6 +97,14 @@ classdef RosPublish < handle
 %            euler = quat2eul(quaternion);
 %            transform = transl(pose(1),pose(2),pose(2)) * rpy2tr(euler(1),euler(2),euler(3),euler(4));
 %        end
+
+       function [msg] = GetJoint(self)
+           msg = self.jointStateSub.LatestMessage;
+       end
+       
+       function [msg] = GetRail(self)
+           msg = self.railStateSub.LatestMessage;
+       end
        
        function MoveBelt(self,enabled,velocity)
             self.beltMsg.Data = [enabled,velocity];
