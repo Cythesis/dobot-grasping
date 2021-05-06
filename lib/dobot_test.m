@@ -38,11 +38,11 @@ end_effector_rotation = [0,0,0];
 dobot.PublishEndEffectorPose(end_effector_position,end_effector_rotation);
 
 pause(t)
-
-end_effector_position = [0.2,0,0.05];
+%%
+end_effector_position = [0.2,0.1,0.05];
 end_effector_rotation = [0,0,0];
 dobot.PublishEndEffectorPose(end_effector_position,end_effector_rotation);
-
+%%
 pause(t)
 
 end_effector_position = [0.2,0,0.1];
@@ -77,6 +77,9 @@ dobot.InitaliseRobot();
 
 %% Move the rail to the position of 0.5
 dobot.MoveRailToPosition(0.0);
+pause(0.2)
+joint_target = [0.1,0.2,0.4,0.0];
+dobot.PublishTargetJoint(joint_target);
 
 %% Set Rail status to false
 dobot.SetRobotOnRail(false);
@@ -102,7 +105,7 @@ dobot.SetIOData(address,ioMux,data);
 
 %% Set a velocity to the conveyor belt
 enableConveyor = true;
-conveyorVelocity = 15000; % Note: this is ticks per second
+conveyorVelocity = 000; % Note: this is ticks per second
 dobot.SetConveyorBeltVelocity(enableConveyor,conveyorVelocity);
 
 %% Turn off conveyor belt
