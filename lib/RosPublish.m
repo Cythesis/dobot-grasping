@@ -45,7 +45,17 @@ classdef RosPublish < handle
            Point.Positions = joint;                                         % Fill in message 
            self.targetJointMsg.Points = Point;                          % Fill message in msg object
            send(self.targetJointPub,self.targetJointMsg);           % Send the message
+           while 1
+               a = self.GetJoint().Position;
+               b = self.targetJointMsg.Points.Positions;
+               pause(0.01);
+               if (abs(a(1)-b(1)) < 0.01) && (abs(a(2)-b(2)) < 0.01) && (abs(a(3)-b(3)) < 0.01) && (abs(a(4)-b(4)) < 0.01)
+                   break
+               end
+           end
+           disp("All done")
         end
+        
         
         function MovePose(self, pose, rotation)                             % Message type pose = [x,y,z];
            self.targetPoseMsg.Position.X = pose(1);                         % Message type rotation = [qw,qx,qy,qz];
@@ -78,6 +88,16 @@ classdef RosPublish < handle
        function MoveRail(self,pos)
            self.railPosMsg.Data = pos;
            send(self.railPosPub,self.railPosMsg);
+           while 1
+               
+               a = self.GetRail().Data;
+               b = self.railPosMsg.Data;
+               pause(0.01);
+               if abs(a-b) < 0.005
+                   break
+               end
+           end
+           disp("All done")
        end
        
 %        function [ID, transform] = GetCurrentArPose(self)
@@ -111,7 +131,7 @@ classdef RosPublish < handle
             send(self.beltPub,self.beltMsg);
        end
        
+       
     end 
-
 end
 
