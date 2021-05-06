@@ -25,7 +25,7 @@ classdef RosPublish < handle
         
         function self = RosPublish()
             % Create ros subscribers
-            self.arPoseSub = rossubscriber('/tf',@arPoseCallback);
+%             self.arPoseSub = rossubscriber('/tf',@arPoseCallback);
             % Create ros publishers
             [self.targetJointPub,self.targetJointMsg] = rospublisher('/dobot_magician/target_joint_states');
             [self.targetPosePub,self.targetPoseMsg] = rospublisher('/dobot_magician/target_end_effector_pose');
@@ -39,8 +39,8 @@ classdef RosPublish < handle
         function MoveJoint(self, joint)                                     % Message type joint = [a,b,c,d];
            Point = rosmessage("trajectory_msgs/JointTrajectoryPoint");      % Create message
            Point.Positions = joint;                                         % Fill in message 
-           self.targetJointTrajMsg.Points = Point;                          % Fill message in msg object
-           send(self.targetJointTrajPub,self.targetJointTrajMsg);           % Send the message
+           self.targetJointMsg.Points = Point;                          % Fill message in msg object
+           send(self.targetJointPub,self.targetJointMsg);           % Send the message
         end
         
         function MovePose(self, pose, rotation)                             % Message type pose = [x,y,z];
@@ -76,23 +76,23 @@ classdef RosPublish < handle
            send(self.railPosPub,self.railPosMsg);
        end
        
-       function [ID, transform] = GetCurrentArPose(self)
-           msg = self.arPoseSub.LatestMessage;
-           
-           ID = msg.Transforms.ChildFrameId;
-           ID = split(ID,"_");
-           ID = ID(3);
-           ID = ID{1,1};
-           ID = str2double(ID);
-           
-           translation = msg.Transforms.Transform.Translation;
-           pose = [translation.X,translation.Y,translation.Z];
-           
-           rotation = msg.Transforms.Transform.Rotation;
-           quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
-           euler = quat2eul(quaternion);
-           transform = transl(pose(1),pose(2),pose(2)) * rpy2tr(euler(1),euler(2),euler(3),euler(4));
-       end
+%        function [ID, transform] = GetCurrentArPose(self)
+%            msg = self.arPoseSub.LatestMessage;
+%            
+%            ID = msg.Transforms.ChildFrameId;
+%            ID = split(ID,"_");
+%            ID = ID(3);
+%            ID = ID{1,1};
+%            ID = str2double(ID);
+%            
+%            translation = msg.Transforms.Transform.Translation;
+%            pose = [translation.X,translation.Y,translation.Z];
+%            
+%            rotation = msg.Transforms.Transform.Rotation;
+%            quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
+%            euler = quat2eul(quaternion);
+%            transform = transl(pose(1),pose(2),pose(2)) * rpy2tr(euler(1),euler(2),euler(3),euler(4));
+%        end
        
        function MoveBelt(self,enabled,velocity)
             self.beltMsg.Data = [enabled,velocity];
