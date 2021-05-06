@@ -9,3 +9,4 @@ To test the RosPublish Matlab class.
 2. Save the class to your Matlab directories then initiate ros in Matlab `rosinit`
 3. Use the Matlab class functions and see the result by typing `rostopic echo /target_joint_states` in your terminal or Matlab
 4. When finish, shutdown ROS `rosshutdown` in your Matlab 
+
