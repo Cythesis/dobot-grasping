@@ -27,7 +27,7 @@ classdef Workspace < handle
         shelf2YOffset = 0.23;
         shelfXOffset = 0.06125;
         % Kinect
-        kinectOffset = [0, 0.217, 0.88275];
+        kinectOffset = [-0.2, 0.217, 0.88275];
         % Containers
         maxNumContainers = 10;
         containerStorage = [];
@@ -53,6 +53,11 @@ classdef Workspace < handle
             else
                 self.workspaceSize = workspaceInput;
                 dobotBaseTransform = baseTransformInput;
+            end
+            
+            if (realRobotToggleInput == 0) && (simulationToggleInput == 0)
+                disp("Either a simulation must be run or the real robot must be used." )
+                return
             end
             
             self.simulationToggle = simulationToggleInput;

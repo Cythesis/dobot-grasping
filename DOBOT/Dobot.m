@@ -42,6 +42,11 @@
 % [realJointAngles, realLinRailPos] = GetRealJointAngles(modelJointAngles, modelLinRailPos)
 %           - Must input 1x5 joint angle matrix (exclude linear rail) and
 %           linear rail position as a scalar value
+
+% Function to convert real joints back into the model joint space
+% [modelJointAngles, modelLinRailPos] = GetModelJointAngles(realJointAngles, realLinRailPos)
+%           - Must input the 1x4 real joint angle matrix (read from real
+%           robot) and a scalar value of the linear rail
 %
 % Function to generate a generic guess pose for  given point, to be used
 % for inverse kinematics calculations
@@ -443,6 +448,16 @@ classdef Dobot < handle
             realJointAngles(1, 2) = modelJointAngles(2);    % Angle does not require adjustment
             realJointAngles(1, 3) = modelJointAngles(3) + modelJointAngles(2) - (pi/2); % adjust, accounting for mechanical linkage
             realJointAngles(1, 4) = modelJointAngles(5);    % Servo angle is the same (joint 5 ommitted) 
+        end
+        %% Function to convert real joints back into the model joint space
+        function [modelJointAngles, modelLinRailPos] = GetModelJointAngles(self, realJointAngles, realLinRailPos)
+            modelLinRailPos = (-1 * realLinRailPos);
+            modelJointAngles = zeros(1, self.model2.n);
+            modelJointAngles(1, 1) = realJointAngles(1);
+            modelJointAngles(1, 2) = realJointAngles(2);
+            modelJointAngles(1, 3) = realJointAngles(3) - realJointAngles(2) + pi/2;
+            modelJointAngles(1, 4) = pi/2 - modelJointAngles(1, 3) - modelJointAngles(1, 2);
+            modelJointAngles(1, 5) = realJointAngles(4);
         end
         %% Function to produce a default guess pose for a given transform
         function [modelGuessPose, inBoundaryCheck] = GetGuessPose(self, currentJointAngles, inputTransform)

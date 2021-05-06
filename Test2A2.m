@@ -6,7 +6,7 @@ simulationToggle = 1;
 realRobotToggle = 0;
 
 workspace = Workspace(realRobotToggle, simulationToggle, dobotBaseTransform, workspaceSize);
-ROSCom = RosPublish();
+ROSCom = RosPublish(realRobotToggle);
 controller = Controller(workspace, ROSCom);
 
 controller.StoreContainer('Salt', 4)

@@ -42,8 +42,12 @@ classdef Controller < handle
             % Get the initial pose
             if (self.workspace1.simulationToggle == 1)
                 currentJointAngles = self.workspace1.Dobot1.model.getpos;
-            else
-                %> ROSCOM CURRENT JOINT ANGLES + LINEAR RAIL POSITION
+            end
+            if (self.workspace1.realRobotToggle == 1)
+                realJointAngles = self.ROSCom1.GetJoint();
+                realLinRailPos = self.ROSCom1.GetRail();
+                [modelJointAngles, modelLinRailPos] = GetModelJointAngles(realJointAngles, realLinRailPos);
+                currentJointAngles = [modelLinRailPos, modelJointAngles];
             end
             
             % Move to 'up' position
@@ -54,7 +58,6 @@ classdef Controller < handle
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortSteps);
             
             % Move container along the conveyor
-            %> TODO: WRITE TO ROSCOM TO MOVE CONVEYOR BY X AMOUNT
             if (self.workspace1.simulationToggle == 1)
                 containerConveyStart = transl(self.workspace1.conveyorOffset(1) + 0.3 ...
                         , self.workspace1.conveyorOffset(2) ...
@@ -66,9 +69,16 @@ classdef Controller < handle
                         + self.workspace1.containerHeights(containerType));
                 self.workspace1.AnimateContainer(containerIndex, containerConveyStart, containerConveyEnd, self.conveyorSteps);
             end
+            if (self.workspace1.realRobotToggle == 1)
+                self.ROSCom1.MoveBelt(1,10000);
+                pause(3)
+                self.ROSCom1.MoveBelt(0,0);
+            end
             
             % Move end-effector just above the container
-            %> TODO: ASK ROSCOM WHAT THE TRANSFORM OF THE CONTAINER IS AFTER CONVEYOR HAS FINISHED MOVING
+            if (self.workspace1.realRobotToggle == 1)
+                %> TODO: ASK ROSCOM WHAT THE TRANSFORM OF THE CONTAINER , overwrite containerConveyEnd
+            end
             [linRailPos, ~] = self.workspace1.Dobot1.GetLinRailPos(currentJointAngles, containerConveyEnd);
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
             containerConveyEnd(3,4) = (containerConveyEnd(3,4) + 0.015);
@@ -79,7 +89,10 @@ classdef Controller < handle
             targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0,0,(-self.springStroke - 0.015));
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
-           
+            if (self.workspace1.realRobotToggle == 1)
+                %> TODO: TURN ON SUCTION VIA ROSCOM
+            end
+            
             % Retract the end-effector spring back to level position
             targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0,0,self.springStroke);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
@@ -132,11 +145,12 @@ classdef Controller < handle
             currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             
             % Turn off suction cup vacuum and move the end-effector away from the container
-            %> TODO: TELL ROSCOM TO TURN OFF SUCTION VACUUM
+            if (self.workspace1.realRobotToggle == 1)
+                %> TODO: TURN OFF SUCTION VIA ROSCOM
+            end
             targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0, -0.045, 0.03);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortSteps);
-            
             
         end
         
@@ -164,9 +178,13 @@ classdef Controller < handle
             if (self.workspace1.simulationToggle == 1)
                 currentJointAngles = self.workspace1.Dobot1.model.getpos;
                 storageLocation = self.workspace1.containerStorage(containerIndex).model.base;
-            else
-                %> ROSCOM CURRENT JOINT ANGLES + LINEAR RAIL POSITION, write over currentJointAngles
-                %> ROSCOM KINECT GET CONTAINER ARTAG POSE, write over storageLocation
+            end
+            if (self.workspace1.realRobotToggle == 1)
+                realJointAngles = self.ROSCom1.GetJoint();
+                realLinRailPos = self.ROSCom1.GetRail();
+                [modelJointAngles, modelLinRailPos] = GetModelJointAngles(realJointAngles, realLinRailPos);
+                currentJointAngles = [modelLinRailPos, modelJointAngles];
+                %> TODO: ROSCOM KINECT GET CONTAINER ARTAG POSE, write over storageLocation
             end
             
             % If shelf 1: move to default position, if shelf 2: move to 'up' position
@@ -184,6 +202,7 @@ classdef Controller < handle
             else
                 currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateDefault2, self.dobotShortSteps);
             end
+            
             % Move end effector / lin rail to final position + a bit above container
             [linRailPos, ~] = self.workspace1.Dobot1.GetLinRailPos(currentJointAngles, storageLocation);
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
@@ -197,6 +216,9 @@ classdef Controller < handle
             targetTransform(3,4) = (storageLocation(3,4) - self.springStroke);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
+            if (self.workspace1.realRobotToggle == 1)
+                %> TODO: TURN ON SUCTION VIA ROSCOM
+            end
             
             targetTransform = storageLocation;
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
@@ -229,10 +251,17 @@ classdef Controller < handle
                         + self.workspace1.containerHeights(containerType));
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, dropTransform);
             currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortSteps);
+            if (self.workspace1.realRobotToggle == 1)
+                %> TODO: TURN OFF SUCTION VIA ROSCOM
+            end
             
             % Return end effector to top position and run item off conveyor belt
             currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateUp, self.dobotShortSteps);
-            %> TODO: WRITE TO ROSCOM TO MOVE CONVEYOR BY X AMOUNT
+            if (self.workspace1.realRobotToggle == 1)
+                self.ROSCom1.MoveBelt(1,-10000);
+                pause(3)
+                self.ROSCom1.MoveBelt(0,0);
+            end
             if (self.workspace1.simulationToggle == 1)
                 containerConveyStart = self.workspace1.containerStorage(containerIndex).model.base;
                 containerConveyEnd = transl(self.workspace1.conveyorOffset(1) + 0.35 ...
@@ -240,22 +269,22 @@ classdef Controller < handle
                         , self.workspace1.conveyorOffset(3) + self.workspace1.conveyorHeight ...
                         + self.workspace1.containerHeights(containerType));
                 self.workspace1.AnimateContainer(containerIndex, containerConveyStart, containerConveyEnd, self.conveyorSteps);
-                % Reset the shelf-filled index corresponding to the container removed
-                if (containerType == 1) || (containerType == 4)
-                    self.workspace1.shelfFilledIndex(2, self.workspace1.containerStorage(containerIndex).shelfIndex) = 0;
-                    self.workspace1.shelf2NumStored = self.workspace1.shelf2NumStored - 1;
-                else
-                    self.workspace1.shelfFilledIndex(1, self.workspace1.containerStorage(containerIndex).shelfIndex) = 0;
-                    self.workspace1.shelf1NumStored = self.workspace1.shelf1NumStored - 1;
-                end
                 % Completely remove the container from simulated workspace
                 self.workspace1.containerStorage(containerIndex).model.base = transl(5,0,0);
                 self.workspace1.containerStorage(containerIndex).model.animate(0);
-                self.workspace1.containerStorage(containerIndex) = [];
             end
-            
+            % Reset the shelf-filled index corresponding to the container removed
+            if (containerType == 1) || (containerType == 4)
+                self.workspace1.shelfFilledIndex(2, self.workspace1.containerStorage(containerIndex).shelfIndex) = 0;
+                self.workspace1.shelf2NumStored = self.workspace1.shelf2NumStored - 1;
+            else
+                self.workspace1.shelfFilledIndex(1, self.workspace1.containerStorage(containerIndex).shelfIndex) = 0;
+                self.workspace1.shelf1NumStored = self.workspace1.shelf1NumStored - 1;
+            end
+            self.workspace1.containerStorage(containerIndex) = [];
         end
         
+        %% Emergency stop function (for GUI callback)
         function EmergencyStop(self)
             self.emergencyStopCheck = 1;
             while(self.emergencyStopCheck == 1)
@@ -263,17 +292,18 @@ classdef Controller < handle
             end
         end
         
+        %% Clear emergency stop function (for GUI callback)
         function ClearEmergencyStop(self)
             self.emergencyStopCheck = 0;
         end
         
+        %% Check the shelf capacity function (for GUI callback)
         function [shelf1Capacity, shelf2Capacity] =  GetCapacityStatus(self)
-            
             shelf1Capacity = self.workspace1.shelf1NumStored / (self.workspace1.maxNumContainers/2);
             shelf2Capacity = self.workspace1.shelf2NumStored / (self.workspace1.maxNumContainers/2);
-            
         end
         
+        %% Function to jog the Dobot end effector via x,y,z or r,p,y (GUI callback)
         function JogPosition(self, jogAmount, jogParameter)
             moveLinRail = 0;
             switch jogParameter
@@ -296,24 +326,27 @@ classdef Controller < handle
                     disp("Invalid jog parameter input. ")
                     return
             end
-            
             if (self.workspace1.simulationToggle == 1)
                 currentJointAngles = self.workspace1.Dobot1.model.getpos;
-                currentTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
-                if moveLinRail == 0
-                    targetTransform = currentTransform * changeTransform;
-                    [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
-                    currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
-                else
-                    linRailPos = currentJointAngles(1) + jogAmount;
-                    currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
-                end
             end
             if (self.workspace1.realRobotToggle == 1)
-                %> TODO: Get current joint angles and send end effector command to Dobot for position
+                realJointAngles = self.ROSCom1.GetJoint();
+                realLinRailPos = self.ROSCom1.GetRail();
+                [modelJointAngles, modelLinRailPos] = GetModelJointAngles(realJointAngles, realLinRailPos);
+                currentJointAngles = [modelLinRailPos, modelJointAngles];
+            end
+            currentTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
+            if moveLinRail == 0
+                targetTransform = currentTransform * changeTransform;
+                [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
+                currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
+            else
+                linRailPos = currentJointAngles(1) + jogAmount;
+                currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
             end
         end
         
+        %% Function to jog the Dobot end effector via joint angles (GUI callback)
         function JogJoint(self, jogAmount, jogParameter)
             moveLinRail = 0;
             switch jogParameter
@@ -331,26 +364,28 @@ classdef Controller < handle
                     disp("Invalid jog parameter input. ")
                     return
             end
-            
             if (self.workspace1.simulationToggle == 1)
                 currentJointAngles = self.workspace1.Dobot1.model.getpos;
-                if moveLinRail == 0
-                    jogAmount = deg2rad(jogAmount);
-                    targetJointAngles = currentJointAngles(2:end);
-                    targetJointAngles(joint) = targetJointAngles(joint) + jogAmount;
-                    targetJointAngles(4) = pi/2 - targetJointAngles(3) - targetJointAngles(2);
-                    currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
-                else
-                    linRailPos = currentJointAngles(1) + jogAmount;
-                    currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
-                end
             end
             if (self.workspace1.realRobotToggle == 1)
-                %> TODO: Get current joint angles and send end effector command to Dobot for position
+                realJointAngles = self.ROSCom1.GetJoint();
+                realLinRailPos = self.ROSCom1.GetRail();
+                [modelJointAngles, modelLinRailPos] = GetModelJointAngles(realJointAngles, realLinRailPos);
+                currentJointAngles = [modelLinRailPos, modelJointAngles];
+            end
+            if (moveLinRail == 0)
+                jogAmount = deg2rad(jogAmount);
+                targetJointAngles = currentJointAngles(2:end);
+                targetJointAngles(joint) = targetJointAngles(joint) + jogAmount;
+                targetJointAngles(4) = pi/2 - targetJointAngles(3) - targetJointAngles(2);
+                currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
+            else
+                linRailPos = currentJointAngles(1) + jogAmount;
+                currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
             end
         end
         
-        
+        %% Function for generic linear rail movement
         function newJointAngles = LinearRailCommand(self, currentJointAngles, positionInput, steps)
             linRailPos = positionInput;
             updatedJointAngles = currentJointAngles;
@@ -360,13 +395,19 @@ classdef Controller < handle
                     self.workspace1.AnimateDobot(currentJointAngles, updatedJointAngles, steps);
                     newJointAngles = self.workspace1.Dobot1.model.getpos;
                 end
-                [~, realLinRailPos] = self.workspace1.Dobot1.GetRealJointAngles(updatedJointAngles(2:end), linRailPos);
-                %> TODO: WRITE THE NEW LINEAR RAIL POSITION TO ROSCOM, update newJointAngles
+                if (self.workspace1.realRobotToggle == 1)
+                    [~, realLinRailPos] = self.workspace1.Dobot1.GetRealJointAngles(updatedJointAngles(2:end), linRailPos);
+                    self.ROSCom1.MoveRail(realLinRailPos);
+                    newRailPos = self.ROSCom1.GetRail();
+                    newJointAngles = currentJointAngles;
+                    newJointAngles(1) = -newRailPos;
+                end
             else
                 newJointAngles = currentJointAngles;
             end
         end
         
+        %% Function for generic linear rail movement with container
         function newJointAngles = LinearRailCommandSimultaneous(self, containerIndex, currentJointAngles, positionInput, steps)
             linRailPos = positionInput;
             updatedJointAngles = currentJointAngles;
@@ -376,29 +417,48 @@ classdef Controller < handle
                     self.workspace1.AnimateSimulatenously(containerIndex, currentJointAngles, updatedJointAngles, steps);
                     newJointAngles = self.workspace1.Dobot1.model.getpos;
                 end
-                [~, realLinRailPos] = self.workspace1.Dobot1.GetRealJointAngles(updatedJointAngles(2:end), linRailPos);
-                %> TODO: WRITE THE NEW LINEAR RAIL POSITION TO ROSCOM, update newJointAngles
+                if (self.workspace1.realRobotToggle == 1)
+                    [~, realLinRailPos] = self.workspace1.Dobot1.GetRealJointAngles(updatedJointAngles(2:end), linRailPos);
+                    self.ROSCom1.MoveRail(realLinRailPos);
+                    newRailPos = self.ROSCom1.GetRail();
+                    newJointAngles = currentJointAngles;
+                    newJointAngles(1) = -newRailPos;
+                end
             else
                 newJointAngles = currentJointAngles;
             end
         end
         
+        %% Function for generic joint angle motion
         function newJointAngles = JointCommand(self, currentJointAngles, finalJointAngles, steps)
             if (self.workspace1.simulationToggle == 1)
                 self.workspace1.AnimateDobot(currentJointAngles, [currentJointAngles(1), finalJointAngles], steps);
                 newJointAngles = self.workspace1.Dobot1.model.getpos;
             end
-            [realJointAngles, ~] = self.workspace1.Dobot1.GetRealJointAngles(self.workspace1.Dobot1.jointStateUp, currentJointAngles(1));
-            %> SEND REAL JOINT ANGLES TO ROSCOM update newJointAngles
+            if (self.workspace1.realRobotToggle == 1)
+                [realJointAngles, ~] = self.workspace1.Dobot1.GetRealJointAngles(finalJointAngles, currentJointAngles(1));
+                self.ROSCom1.MoveJoint(realJointAngles);
+                actualRealJointAngles = self.ROSCom1.GetJoint();
+                actualLinRailPos = self.ROSCom1.GetRail();
+                [modelJointAngles, modelLinRailPos] = GetModelJointAngles(actualRealJointAngles, actualLinRailPos);
+                newJointAngles = [modelLinRailPos, modelJointAngles];
+            end
         end
         
+        %% Function for generic joint angle motion with container
         function newJointAngles = JointCommandSimultaneous(self, containerIndex, currentJointAngles, finalJointAngles, steps)
             if (self.workspace1.simulationToggle == 1)
                 self.workspace1.AnimateSimulatenously(containerIndex, currentJointAngles, [currentJointAngles(1), finalJointAngles], steps);
                 newJointAngles = self.workspace1.Dobot1.model.getpos;
             end
-            [realJointAngles, ~] = self.workspace1.Dobot1.GetRealJointAngles(self.workspace1.Dobot1.jointStateUp, currentJointAngles(1));
-            %> SEND REAL JOINT ANGLES TO ROSCOM update newJointAngles
+            if (self.workspace1.realRobotToggle == 1)
+                [realJointAngles, ~] = self.workspace1.Dobot1.GetRealJointAngles(finalJointAngles, currentJointAngles(1));
+                self.ROSCom1.MoveJoint(realJointAngles);
+                actualRealJointAngles = self.ROSCom1.GetJoint();
+                actualLinRailPos = self.ROSCom1.GetRail();
+                [modelJointAngles, modelLinRailPos] = GetModelJointAngles(actualRealJointAngles, actualLinRailPos);
+                newJointAngles = [modelLinRailPos, modelJointAngles];
+            end
         end
     end
 end
