@@ -61,7 +61,7 @@ classdef RosPublish < handle
             send(self.statusPub,self.statusMsg);
        end
 
-       function EStopRobot(self)
+       function Estop(self)
             self.statusMsg.Data = 3; 
             send(self.statusPub,self.statusMsg);
        end
@@ -94,7 +94,7 @@ classdef RosPublish < handle
            transform = transl(pose(1),pose(2),pose(2)) * rpy2tr(euler(1),euler(2),euler(3),euler(4));
        end
        
-       function BeltVelocity(self,enabled,velocity)
+       function MoveBelt(self,enabled,velocity)
             self.beltMsg.Data = [enabled,velocity];
             send(self.beltPub,self.beltMsg);
        end
