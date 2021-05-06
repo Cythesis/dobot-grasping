@@ -9,16 +9,15 @@ workspace = Workspace(realRobotToggle, simulationToggle, dobotBaseTransform, wor
 ROSCom = RosPublish();
 controller = Controller(workspace, ROSCom);
 
-controller.StoreContainer('Salt', 2)
-controller.StoreContainer('Salt2', 3)
-controller.StoreContainer('Chilli', 1)
+controller.StoreContainer('Salt', 4)
+controller.StoreContainer('Salt2', 4)
 controller.RetrieveContainer('Salt')
+controller.StoreContainer('Chilli', 4)
 controller.StoreContainer('Basil', 2)
-controller.StoreContainer('Basil2', 4)
+controller.StoreContainer('Basil2', 3)
 controller.StoreContainer('Basil3', 2)
-controller.RetrieveContainer('Basil2')
-controller.StoreContainer('Chilli2', 1)
+controller.RetrieveContainer('Basil')
+controller.StoreContainer('Chilli2', 2)
 controller.StoreContainer('Chilli3', 4)
 controller.RetrieveContainer('Basil')
-controller.StoreContainer('Chilli4', 1)
-controller.StoreContainer('Basil4', 2)
+

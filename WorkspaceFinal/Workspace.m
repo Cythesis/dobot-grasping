@@ -24,7 +24,7 @@ classdef Workspace < handle
         shelf1Height = 0.075;
         shelf1YOffset = 0.0924;
         shelf2Height = 0.205;
-        shelf2YOffset = 0.24;
+        shelf2YOffset = 0.23;
         shelfXOffset = 0.06125;
         % Kinect
         kinectOffset = [0, 0.217, 0.88275];

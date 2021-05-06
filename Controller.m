@@ -12,6 +12,7 @@ classdef Controller < handle
         dobotShortestSteps = 5;
         dobotLongSteps = 100;
         dobotMidSteps = 50;
+        emergencyStopCheck = 0;
         
     end
     
@@ -124,11 +125,19 @@ classdef Controller < handle
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortSteps);
             
+            % Adjust servo angle to return angle of container to zero
+            containerRotTransform = self.workspace1.containerStorage(containerIndex).model.base;
+            containerRotTransform(1,4) = 0; containerRotTransform(2,4) = 0; containerRotTransform(3,4) = 0;
+            targetJointAngles(5) = currentJointAngles(6) - atan(containerRotTransform(2,1) / containerRotTransform(1,1));
+            currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortestSteps);
+            
             % Turn off suction cup vacuum and move the end-effector away from the container
             %> TODO: TELL ROSCOM TO TURN OFF SUCTION VACUUM
             targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0, -0.045, 0.03);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortSteps);
+            
+            
         end
         
         %% Container Retrieval Function
@@ -248,7 +257,14 @@ classdef Controller < handle
         end
         
         function EmergencyStop(self)
-            
+            self.emergencyStopCheck = 1;
+            while(self.emergencyStopCheck == 1)
+                pause(0.001)
+            end
+        end
+        
+        function ClearEmergencyStop(self)
+            self.emergencyStopCheck = 0;
         end
         
         function [shelf1Capacity, shelf2Capacity] =  GetCapacityStatus(self)
