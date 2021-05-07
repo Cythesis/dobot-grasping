@@ -90,7 +90,7 @@ classdef Controller < handle
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             if (self.workspace1.realRobotToggle == 1)
-                %> TODO: TURN ON SUCTION VIA ROSCOM
+                self.ROSCom1.MoveTool(1);
             end
             
             % Retract the end-effector spring back to level position
@@ -146,7 +146,7 @@ classdef Controller < handle
             
             % Turn off suction cup vacuum and move the end-effector away from the container
             if (self.workspace1.realRobotToggle == 1)
-                %> TODO: TURN OFF SUCTION VIA ROSCOM
+                self.ROSCom1.MoveTool(0);
             end
             targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0, -0.045, 0.03);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
@@ -217,7 +217,7 @@ classdef Controller < handle
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             if (self.workspace1.realRobotToggle == 1)
-                %> TODO: TURN ON SUCTION VIA ROSCOM
+                self.ROSCom1.MoveTool(1);
             end
             
             targetTransform = storageLocation;
@@ -252,7 +252,7 @@ classdef Controller < handle
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, dropTransform);
             currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortSteps);
             if (self.workspace1.realRobotToggle == 1)
-                %> TODO: TURN OFF SUCTION VIA ROSCOM
+                self.ROSCom1.MoveTool(1);
             end
             
             % Return end effector to top position and run item off conveyor belt
