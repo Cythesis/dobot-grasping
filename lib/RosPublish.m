@@ -9,7 +9,7 @@ classdef RosPublish < handle
         targetJointPub;
         targetPosePub;
         statusPub;
-        toolStatePub;
+        toolPub;
         railStatusPub;
         railPosPub;
         beltPub;
@@ -18,7 +18,7 @@ classdef RosPublish < handle
         targetJointMsg;
         targetPoseMsg;
         statusMsg;
-        toolStateMsg;
+        toolMsg;
         railStatusMsg;
         railPosMsg;
         beltMsg;
@@ -34,12 +34,17 @@ classdef RosPublish < handle
             [self.targetJointPub,self.targetJointMsg] = rospublisher('/dobot_magician/target_joint_states');
             [self.targetPosePub,self.targetPoseMsg] = rospublisher('/dobot_magician/target_end_effector_pose');
             [self.statusPub,self.statusMsg] = rospublisher('/dobot_magician/target_safety_status');
-            [self.toolStatePub, self.toolStateMsg] = rospublisher('/dobot_magician/target_tool_state');
+            [self.toolPub, self.toolMsg] = rospublisher('/dobot_magician/target_tool_state');
             [self.railStatusPub, self.railStatusMsg] = rospublisher('/dobot_magician/target_rail_status');
             [self.railPosPub,self.railPosMsg] = rospublisher('/dobot_magician/target_rail_position');
             [self.beltPub,self.beltMsg] = rospublisher('/dobot_magician/target_e_motor_state');
         end
         
+        function MoveTool(self, state)
+           self.toolMsg.Data = state;
+           send(self.toolPub,self.toolMsg)
+        end
+
         function MoveJoint(self, joint)                                     % Message type joint = [a,b,c,d];
            Point = rosmessage("trajectory_msgs/JointTrajectoryPoint");      % Create message
            Point.Positions = joint;                                         % Fill in message 
