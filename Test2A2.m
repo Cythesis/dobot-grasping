@@ -3,7 +3,7 @@ close all; clear all; clc; clf;
 workspaceSize = [-1, 1, -1, 1, -0.012, 1];
 dobotBaseTransform = transl(0,0,0);
 simulationToggle = 1;
-realRobotToggle = 0;
+realRobotToggle = 1;
 
 workspace = Workspace(realRobotToggle, simulationToggle, dobotBaseTransform, workspaceSize);
 ROSCom = RosPublish(realRobotToggle);

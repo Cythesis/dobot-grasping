@@ -87,7 +87,7 @@ classdef Dobot < handle
         % Set some default joint states for linear rail model
         jointStateDefault = [0, deg2rad([0, 5, 115, -30, 0])];
         jointStateDefault2 = deg2rad([0, 5, 115, -30, 0]);
-        jointStateUp = deg2rad([0, 5, 50, 35, 0]);
+        jointStateUp = deg2rad([0, 5, 75, 10, 0]);
         % Give a name for reference
         name = 'Dobot';
         % Set a workspace size
