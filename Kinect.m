@@ -26,7 +26,9 @@ classdef Kinect
             num = 14;
             msg = cell(num);
             for i = 1:num
-                msg(i) = recieve(self.arPoseSub);
+                disp(i)
+                msg(i) = receive(self.arPoseSub);
+                disp('message received')
             end
             
             for i = 1:num
