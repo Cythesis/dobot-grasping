@@ -25,27 +25,32 @@ classdef Kinect
         function tRaw = GetTargetRaw(self, selectedTag)
             num = 14;
             msg = cell(num);
+%             for i = 1:num
+%                 disp(i)
+%                 msg(i) = receive(self.arPoseSub);
+%                 disp('message received')
+%             end
+
             for i = 1:num
-                disp(i)
-                msg(i) = receive(self.arPoseSub);
-                disp('message received')
-            end
-            
-            for i = 1:num
+                msg = receive(self.arPoseSub);
                 ID = msg.Transforms.ChildFrameId;
                 ID = split(ID,"_");
                 ID = ID(3);
                 ID = ID{1,1};
                 ID = str2double(ID);
+                disp(ID)
                 if ID == selectedTag
-                    index = i;
+%                     index = i;
+                    break
                 end
             end
            
-            translation = msg(index).Transforms.Transform.Translation;
+%             translation = msg(index).Transforms.Transform.Translation;
+            translation = msg.Transforms.Transform.Translation;
             translationT = transl(translation.X, translation.Y, translation.Z);
            
-            rotation = msg(index).Transforms.Transform.Rotation;
+%             rotation = msg(index).Transforms.Transform.Rotation;
+            rotation = msg.Transforms.Transform.Rotation;
             quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
             euler = quat2eul(quaternion);
             rotationT = rpy2tr(euler);
