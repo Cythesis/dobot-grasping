@@ -1,9 +1,11 @@
 function kinect_test_main
     rosinit
     
-    kinectCamera = kinect.m;
+    kinectCamera = Kinect;
     
     T = kinectCamera.GetTargetRaw(0);
     
     disp(T);
+    
+    rosshutdown
 end
