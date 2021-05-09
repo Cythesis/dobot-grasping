@@ -26,7 +26,9 @@ classdef Kinect
             num = 14;
             msg = cell(num);
             for i = 1:num
-                msg(i) = recieve(self.arPoseSub);
+                disp(i)
+                msg(i) = receive(self.arPoseSub);
+                disp('message received')
             end
             
             for i = 1:num
@@ -36,14 +38,14 @@ classdef Kinect
                 ID = ID{1,1};
                 ID = str2double(ID);
                 if ID == selectedTag
-                    ind = i;
+                    index = i;
                 end
             end
            
-            translation = msg(ind).Transforms.Transform.Translation;
+            translation = msg(index).Transforms.Transform.Translation;
             translationT = transl(translation.X, translation.Y, translation.Z);
            
-            rotation = msg(ind).Transforms.Transform.Rotation;
+            rotation = msg(index).Transforms.Transform.Rotation;
             quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
             euler = quat2eul(quaternion);
             rotationT = rpy2tr(euler);
@@ -52,10 +54,52 @@ classdef Kinect
         end
         
         function tGlobe = RetrieveFood(self, selectedTag)
-            
+            tRaw = self.GetTargetRaw(selectedTag);
+            tGlobe = self.tKinect * tRaw;
         end
         
         function [tGlobe, tag] = StoreFood(self, storedTags)
+            errorFlag = 0;
+            store = length(storedTags);
+            
+            num = 14;
+            msg = cell(num);
+            for i = 1:num
+                msg(i) = recieve(self.arPoseSub);
+            end
+            
+            for i = 1:num
+                ID = msg.Transforms.ChildFrameId;
+                ID = split(ID,"_");
+                ID = ID(3);
+                ID = ID{1,1};
+                ID = str2double(ID);
+                for j = 1:store
+                    if ID ~= storedTags(j)
+                        index = i;
+                        tag = ID;
+                    else
+                        errorFlag = 1;
+                    end
+                end
+            end
+            
+            if errorFlag == 1
+                disp('ID already exists/not found')
+                return
+            end
+           
+            translation = msg(index).Transforms.Transform.Translation;
+            translationT = transl(translation.X, translation.Y, translation.Z);
+           
+            rotation = msg(index).Transforms.Transform.Rotation;
+            quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
+            euler = quat2eul(quaternion);
+            rotationT = rpy2tr(euler);
+            
+            tRaw = translationT*rotationT; 
+            
+            tGlobe = self.tKinect * tRaw;
             
         end
     end
