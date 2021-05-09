@@ -3,7 +3,7 @@ function kinect_test_main
     
     kinectCamera = Kinect;
     
-    T = kinectCamera.GetTargetRaw(0);
+    T = kinectCamera.GetTargetRaw(5);
     
     disp(T);
     
