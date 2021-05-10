@@ -12,6 +12,10 @@ classdef Kinect
                                  0         0         0    1.0000];
             %subscribe to ros topic
             self.arPoseSub = rossubscriber("/tf");
+            
+            self.tag = ["ar_marker_0", ...
+                   "ar_marker_1", ...
+                   "ar_marker_2"];
         end
         
 %         function SetCalibrationTransform(self, inputTransform)
@@ -23,26 +27,44 @@ classdef Kinect
 %         end
         
         function tRaw = GetTargetRaw(self, selectedTag)
+            errorFlag = 1;
             num = 14;
-            msg = cell(num);
+            
+            s = self.tag(selectedTag+1);
+            
+%             msg = zeros(1,num);
 %             for i = 1:num
 %                 disp(i)
 %                 msg(i) = receive(self.arPoseSub);
 %                 disp('message received')
 %             end
-
+            
+            disp('searching for tag')
             for i = 1:num
                 msg = receive(self.arPoseSub);
-                ID = msg.Transforms.ChildFrameId;
-                ID = split(ID,"_");
-                ID = ID(3);
-                ID = ID{1,1};
-                ID = str2double(ID);
-                disp(ID)
-                if ID == selectedTag
-%                     index = i;
+%                 ID = msg(i).Transforms.ChildFrameId;
+%                 ID = msg.Transforms.ChildFrameId;
+%                 ID = split(ID,"_");
+%                 ID = ID(3);
+%                 ID = ID{1,1};
+%                 ID = str2double(ID);
+% %                 disp(ID)
+%                 if ID == selectedTag
+% %                     index = i;
+% %                     disp("index = "+ i)
+%                     errorFlag = 0;
+%                     break
+%                 end
+                if msg.Transforms.ChildFrameId == s
+                    errorFlag = 0;
                     break
                 end
+            end
+            
+            if errorFlag == 1
+                disp('Error, requested tag not found')
+                tRaw = 0;
+                return
             end
            
 %             translation = msg(index).Transforms.Transform.Translation;
