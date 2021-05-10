@@ -450,23 +450,23 @@ C2 = [-0.25,Dobot1.rangeCircle2.normalDistOrigin,Dobot1.rangeCircle2.zDistOrigin
 C3 = [-0.25,Dobot1.rangeCircle3.normalDistOrigin,Dobot1.rangeCircle3.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
 C4 = [-0.25,Dobot1.rangeCircle4.normalDistOrigin,Dobot1.rangeCircle4.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
 
-constZOffset = 0.08;
-constXOffset = 0.05254;
+constZOffset = 0.127;
+constXOffset = 0;
 
-C1b = [0.25, 0.07457 + constXOffset, 0.00394 + constZOffset];
-C2b = [0.25, 0.17209 + constXOffset, -0.06035 + constZOffset];
-C3b = [0.25, 0.15818 + constXOffset, -0.08626 + constZOffset];
-C4b = [0.25, 0.07972 + constXOffset, 0.13215 + constZOffset];
+C1b = [0.25, 0.19973 + constXOffset, 0.04509 + constZOffset];
+C2b = [0.25, 0.05919 + constXOffset, 0.00000 + constZOffset];
+C3b = [0.25, 0.04549 + constXOffset, 0.13204 + constZOffset];
+C4b = [0.25, 0.07503 + constXOffset, -0.14462 + constZOffset];
 
 R1 = Dobot1.rangeCircle1.radius;    % Radius of circle 
 R2 = Dobot1.rangeCircle2.radius;    % Radius of circle 
 R3 = Dobot1.rangeCircle3.radius;    % Radius of circle 
 R4 = Dobot1.rangeCircle4.radius;    % Radius of circle 
 
-R1b = (0.52412/2);
-R2b = (0.48624/2);
-R3b = (0.19699/2);
-R4b = (0.24105/2);
+R1b = (0.26845/2);
+R2b = (0.55487/2);
+R3b = (0.28769/2);
+R4b = (0.26803/2);
 
 theta = 0:0.01:2*pi;
 thetaB = 0:0.01:pi/2;
@@ -487,12 +487,12 @@ z4 = C4(3)+ R4*cos(theta);
 y4 = C4(2)+ R4*sin(theta);
 x4 = C4(1)+ zeros(size(z4));
 
-z1b = C1b(3)+ R1b*cos(thetaB);
-y1b = C1b(2)+ R1b*sin(thetaB);
+z1b = C1b(3)+ R1b*cos(theta);
+y1b = C1b(2)+ R1b*sin(theta);
 x1b = C1b(1)+ zeros(size(z1b));
 
-z2b = C2b(3)+ R2b*cos(thetaB);
-y2b = C2b(2)+ R2b*sin(thetaB);
+z2b = C2b(3)+ R2b*cos(theta);
+y2b = C2b(2)+ R2b*sin(theta);
 x2b = C2b(1)+ zeros(size(z2b));
 
 

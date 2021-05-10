@@ -99,10 +99,10 @@ classdef Dobot < handle
         % Set some range parameters for boundary checks: 
         % Ie. in range if in top left circle 1 and also circle 2, but while not in circle 3 and 4. 
         % Distances to circle origins measured from origin of Dobot's link 1
-        rangeCircle1 = struct('radius', 0.27959, 'zDistOrigin', 0.00000, 'normalDistOrigin', 0.05254);
-        rangeCircle2 = struct('radius', 0.12310, 'zDistOrigin', 0.00177, 'normalDistOrigin', 0.21102);
-        rangeCircle3 = struct('radius', 0.14700, 'zDistOrigin', 0.13449, 'normalDistOrigin', 0.06431);
-        rangeCircle4 = struct('radius', 0.14592, 'zDistOrigin', -0.15009, 'normalDistOrigin', 0.06796);
+        rangeCircle1 = struct('radius', (0.26845/2), 'zDistOrigin', (0.04509),  'normalDistOrigin', 0.19973);
+        rangeCircle2 = struct('radius', (0.55487/2), 'zDistOrigin', (0.00000),  'normalDistOrigin', 0.05919);
+        rangeCircle3 = struct('radius', (0.28769/2), 'zDistOrigin', (0.13204),  'normalDistOrigin', 0.04549);
+        rangeCircle4 = struct('radius', (0.26803/2), 'zDistOrigin', (-0.14462), 'normalDistOrigin', 0.07503);
         % Set a default number of steps for unspecified paths - simulation
         % only
         defaultSteps = 50;
@@ -160,6 +160,7 @@ classdef Dobot < handle
             
             % Create SerialLink() object for linear rail simulated model
             self.model = SerialLink(links, 'name', self.name);
+            self.model.delay = 0.0001;
             % Create another SerialLink() object for non-linear rail model
             self.model2 = SerialLink(links2, 'name', self.name);
             % Adjust base locations
@@ -567,7 +568,7 @@ classdef Dobot < handle
             azimuth = self.GetAzimuth(relativeTransform);
             requirement5 = (azimuth <= self.model2.qlim(1,2)) && (azimuth >= self.model2.qlim(1,1));
             % Finally, meet the requirements as follows:
-            inRange = (requirement1 || requirement2) && requirement3 && requirement4 && requirement5;
+            inRange = (requirement1 && requirement2) && requirement3 && requirement4 && requirement5;
         end
         %% Function to determine if a point is within the robot's entire workspace
         function inBoundary = CheckInBounds(self, inputTransform)

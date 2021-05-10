@@ -55,7 +55,7 @@ classdef Controller < handle
             currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateUp, self.dobotShortSteps);
             
             % Move to initial 'ready' linear rail position
-            linRailPos = -0.75;
+            linRailPos = -0.65;
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortSteps);
             
             % Move container along the conveyor
@@ -197,7 +197,7 @@ classdef Controller < handle
                 currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateUp, self.dobotShortSteps);
             else
                 currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateUp, self.dobotShortSteps);
-                linRailPos = -0.75;
+                linRailPos = -0.65;
                 currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortSteps);
             end
             % If shelf 1: move to lin rail approach position, if shelf 2: move to lin rail x = target storage location X
@@ -246,7 +246,7 @@ classdef Controller < handle
             end
             
             % Move linear rail back to conveyor drop location
-            linRailPos = -0.75;
+            linRailPos = -0.65;
             currentJointAngles = self.LinearRailCommandSimultaneous(containerIndex, currentJointAngles, linRailPos, self.dobotShortSteps);
             
             % Move end effector above conveyor and release suction.
@@ -429,11 +429,11 @@ classdef Controller < handle
                 currentJointAngles = [modelLinRailPos, modelJointAngles];
             end
             % Initialise RMRC parameters. Can be tuned for smoother operation
-            dT = 1;      % Time step
+            dT = 0.15;      % Time step
             counter = 0;    % Loop counter
-            axisGain = 0.02; % Amount for distance per tick gain on robot joints
+            axisGain = 0.03; % Amount for distance per tick gain on robot joints
             railGain = 0.05; % Amount of distance per tick gain on linear rail
-            lambda = 0.5;   % Damping coefficient
+            lambda = 0.1;   % Damping coefficient
             tic;            % Start time
             % Commence control loop, idle until there is user input.
             % Indefinite loop until remote control check is cleared by GUI.
@@ -471,12 +471,13 @@ classdef Controller < handle
                     currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
                 end
                 % Update simulation or real robot if any have changed:
-                if any(currentJointAngles(2:end) - prevJointAngles(2:end))
-                    self.JointCommand(prevJointAngles, currentJointAngles(2:end), 1);
-                end
-                if any(currentJointAngles(1) - prevJointAngles(1))
-                    self.LinearRailCommand(prevJointAngles, currentJointAngles(1), 1);
-                end
+%                 if any(currentJointAngles(2:end) - prevJointAngles(2:end))
+%                     self.JointCommand(prevJointAngles, currentJointAngles(2:end), 1);
+%                 end
+%                 if any(currentJointAngles(1) - prevJointAngles(1))
+%                     self.LinearRailCommand(prevJointAngles, currentJointAngles(1), 1);
+%                 end
+                self.workspace1.Dobot1.model.animate(currentJointAngles)
                 % Check loop time in case it is running longer than dT
                 if (toc > dT * counter)
                     disp("Loop time exceeded allocated time step in remote control function. ")
