@@ -13,6 +13,7 @@ classdef Controller < handle
         dobotLongSteps = 100;
         dobotMidSteps = 50;
         emergencyStopCheck = 0;
+        remoteControlCheck = 0;
         
     end
     
@@ -308,27 +309,36 @@ classdef Controller < handle
         end
         
         %% Function to jog the Dobot end effector via x,y,z or r,p,y (GUI callback)
-        function JogPosition(self, jogAmount, jogParameter)
+        function currentJointAngles = JogPosition(self, jogAmount, jogParameter)
             moveLinRail = 0;
-            switch jogParameter
-                case 0 % LINEAR RAIL
-                    changeTransform = eye(4);
-                    moveLinRail = 1;
-                case 1 % X AXIS
-                    changeTransform = transl(0,jogAmount,0);
-                case 2 % Y AXIS
-                    changeTransform = transl(-jogAmount,0,0);
-                case 3 % Z AXIS
-                    changeTransform = transl(0,0,jogAmount);
-                case 4 % ROLL
-                    changeTransform = rpy2tr(deg2rad(jogAmount),0,0);
-                case 5 % PITCH
-                    changeTransform = rpy2tr(0,deg2rad(jogAmount),0);
-                case 6 % YAW
-                    changeTransform = rpy2tr(0,0,deg2rad(jogAmount));
-                otherwise
-                    disp("Invalid jog parameter input. ")
-                    return
+            moveJoints = 0;
+            changeTransform = transl(0,0,0);
+            for i = 1:(size(jogParameter, 2))
+                switch jogParameter(i)
+                    case 0 % LINEAR RAIL
+                        moveLinRail = 1;
+                    case 1 % X AXIS
+                        moveJoints = 1;
+                        changeTransform = changeTransform * transl(0,jogAmount(i),0);
+                    case 2 % Y AXIS
+                        moveJoints = 1;
+                        changeTransform = changeTransform * transl(-jogAmount(i),0,0);
+                    case 3 % Z AXIS
+                        moveJoints = 1;
+                        changeTransform = changeTransform * transl(0,0,jogAmount(i));
+                    case 4 % ROLL
+                        moveJoints = 1;
+                        changeTransform = changeTransform * rpy2tr(deg2rad(jogAmount(i)),0,0);
+                    case 5 % PITCH
+                        moveJoints = 1;
+                        changeTransform = changeTransform * rpy2tr(0,deg2rad(jogAmount(i)),0);
+                    case 6 % YAW
+                        moveJoints = 1;
+                        changeTransform = changeTransform * rpy2tr(0,0,deg2rad(jogAmount(i)));
+                    otherwise
+                        disp("Invalid jog parameter input. ")
+                        return
+                end
             end
             if (self.workspace1.simulationToggle == 1)
                 currentJointAngles = self.workspace1.Dobot1.model.getpos;
@@ -340,13 +350,16 @@ classdef Controller < handle
                 currentJointAngles = [modelLinRailPos, modelJointAngles];
             end
             currentTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
-            if moveLinRail == 0
+            if (moveJoints == 1)
                 targetTransform = currentTransform * changeTransform;
-                [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
-                currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
-            else
-                linRailPos = currentJointAngles(1) + jogAmount;
-                currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
+                try [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
+                    currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, 3);
+                catch
+                end
+            end
+            if (moveLinRail == 1)
+                linRailPos = currentJointAngles(1) + jogAmount(jogParameter == 0);
+                currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, 3);
             end
         end
         
@@ -389,6 +402,96 @@ classdef Controller < handle
             end
         end
         
+        %% Function for remote control input with DS4 controller
+        % Much of this code was derived from Robotics 41013 Lab 11.
+        function StartRemoteControl(self)
+            % Toggle the remote control check so that an indefinite loop
+            % can be used for remote control
+            self.remoteControlCheck = 1;
+            % Controller ID: May need to change if there are any errors
+            controllerID = 1;
+            % Try to create a joystick object, may fail if user does not
+            % have the right toolbox. End function if so.
+            try DS4Controller = vrjoystick(controllerID);
+            catch
+                disp("Simulink 3D Animation toolbox may not be installed, or controller ID may need to change. " )
+                self.remoteControlCheck = 0;
+                return
+            end
+            % Obtain initial joint angles; for simulation or for real robot
+            if (self.workspace1.simulationToggle == 1)
+                currentJointAngles = self.workspace1.Dobot1.model.getpos;
+            end
+            if (self.workspace1.realRobotToggle == 1)
+                actualRealJointAngles = self.ROSCom1.GetJoint();
+                actualLinRailPos = self.ROSCom1.GetRail();
+                [modelJointAngles, modelLinRailPos] = self.workspace1.Dobot1.GetModelJointAngles(actualRealJointAngles, actualLinRailPos);
+                currentJointAngles = [modelLinRailPos, modelJointAngles];
+            end
+            % Initialise RMRC parameters. Can be tuned for smoother operation
+            dT = 1;      % Time step
+            counter = 0;    % Loop counter
+            axisGain = 0.02; % Amount for distance per tick gain on robot joints
+            railGain = 0.05; % Amount of distance per tick gain on linear rail
+            lambda = 0.5;   % Damping coefficient
+            tic;            % Start time
+            % Commence control loop, idle until there is user input.
+            % Indefinite loop until remote control check is cleared by GUI.
+            while (self.remoteControlCheck == 1)
+                % Iterate counter
+                counter = counter + 1;
+                % Obtain joystick data
+                [axes, ~, ~] = read(DS4Controller);
+                % Convert joystick input to an axial / rail velocity
+                xVelocity = axisGain * axes(1);
+                yVelocty = axisGain * -axes(6);
+                zVelocity = axisGain * -axes(2);
+                linRailVelocity = railGain * -axes(3);
+                % Use jacobian with DLS to determine joint velocities; use
+                % 6 link model which includes linear rail for "supposedly
+                % actuated" jacobian 
+                jacobian = self.workspace1.Dobot1.model2.jacob0(currentJointAngles(2:end));
+                jacobian3X3 = jacobian(1:3, 1:3);
+                DLSinvJacob = (transpose(jacobian3X3) * (jacobian3X3 + lambda*eye(3))) \ transpose(jacobian3X3);
+                qDotX = (DLSinvJacob(:,1) * xVelocity)';
+                qDotY = (DLSinvJacob(:,2) * yVelocty)';
+                qDotZ = (DLSinvJacob(:,3) * zVelocity)';
+                % Store previous joint angles before updating
+                prevJointAngles = currentJointAngles;
+                % Apply joint velocities to increment joint angles
+                currentJointAngles(2:4) = currentJointAngles(2:4) + ((qDotX + qDotY + qDotZ) * dT);
+                currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
+                currentJointAngles(6) = -currentJointAngles(2);
+                currentJointAngles(1) = currentJointAngles(1) + (linRailVelocity * dT);
+                % Check joint limits
+                inLimits = self.workspace1.Dobot1.CheckJointLimits(currentJointAngles);
+                if ~all(inLimits)
+                    jointLimitIndex = find(~inLimits);
+                    currentJointAngles(jointLimitIndex) = prevJointAngles(jointLimitIndex);
+                    currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
+                end
+                % Update simulation or real robot if any have changed:
+                if any(currentJointAngles(2:end) - prevJointAngles(2:end))
+                    self.JointCommand(prevJointAngles, currentJointAngles(2:end), 1);
+                end
+                if any(currentJointAngles(1) - prevJointAngles(1))
+                    self.LinearRailCommand(prevJointAngles, currentJointAngles(1), 1);
+                end
+                % Check loop time in case it is running longer than dT
+                if (toc > dT * counter)
+                    disp("Loop time exceeded allocated time step in remote control function. ")
+                end
+                % Pause until dT has passed for this iteration
+                while (toc < dT * counter)
+                end
+            end
+        end
+        
+        %% Function to terminate remote control 
+        function EndRemoteControl(self)
+            self.remoteControlCheck = 0;
+        end
+        
         %% Function for generic linear rail movement
         function newJointAngles = LinearRailCommand(self, currentJointAngles, positionInput, steps)
             linRailPos = positionInput;
@@ -396,7 +499,11 @@ classdef Controller < handle
             updatedJointAngles(1) = linRailPos;
             if linRailPos ~= currentJointAngles(1)
                 if (self.workspace1.simulationToggle == 1)
-                    self.workspace1.AnimateDobot(currentJointAngles, updatedJointAngles, steps);
+                    if (steps == 1)
+                        self.workspace1.Dobot1.model.animate(updatedJointAngles);
+                    else
+                        self.workspace1.AnimateDobot(currentJointAngles, updatedJointAngles, steps);
+                    end
                     newJointAngles = self.workspace1.Dobot1.model.getpos;
                 end
                 if (self.workspace1.realRobotToggle == 1)
@@ -436,7 +543,11 @@ classdef Controller < handle
         %% Function for generic joint angle motion
         function newJointAngles = JointCommand(self, currentJointAngles, finalJointAngles, steps)
             if (self.workspace1.simulationToggle == 1)
-                self.workspace1.AnimateDobot(currentJointAngles, [currentJointAngles(1), finalJointAngles], steps);
+                if (steps == 1)
+                    self.workspace1.Dobot1.model.animate([currentJointAngles(1), finalJointAngles]);
+                else
+                    self.workspace1.AnimateDobot(currentJointAngles, [currentJointAngles(1), finalJointAngles], steps);
+                end
                 newJointAngles = self.workspace1.Dobot1.model.getpos;
             end
             if (self.workspace1.realRobotToggle == 1)

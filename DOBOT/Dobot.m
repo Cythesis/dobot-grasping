@@ -69,6 +69,10 @@
 % inBoundary = CheckInBounds(inputTransform)
 %           - Must input 4x4 global point transform
 % 
+% Function to check if a given matrix of joint angles is within joint limits
+% inLimits = CheckJointLimits(currentJointAngles)
+%           - Must input a 1x6 joint angle matrix, returns a 1x6 logical
+%           array of respective joint angle limit status
 
 classdef Dobot < handle
     
@@ -133,7 +137,7 @@ classdef Dobot < handle
             
             % Define DH parameters for SerialLink() - 
             % FOR MODEL INCLUDING LINEAR RAIL
-            links(1) = Link([0     0       0       -pi/2    1]); % Prismatic link 'sigma', 1,     'a', -0.133,    'alpha', pi/2   
+            links(1) = Link([0     0       0       -pi/2    1]); % Prismatic link 'sigma', 1,     'a', -0.127,    'alpha', pi/2   
             links(2) = Link('d', 0.08,      'a', 0,         'alpha', pi/2   );
             links(3) = Link('d', 0,         'a', -0.135,    'alpha', 0, 'offset', -pi/2       );
             links(4) = Link('d', 0,         'a', -0.147,    'alpha', 0      );
@@ -159,8 +163,8 @@ classdef Dobot < handle
             % Create another SerialLink() object for non-linear rail model
             self.model2 = SerialLink(links2, 'name', self.name);
             % Adjust base locations
-            self.model.base = baseTransform * transl(-0.5,0,0.133) * rpy2tr(pi/2, -pi/2, 0);
-            self.model2.base = baseTransform * transl(-0.5,0,0.133) * rpy2tr(0, 0, -pi/2);
+            self.model.base = baseTransform * transl(-0.5,0,0.127) * rpy2tr(pi/2, -pi/2, 0);
+            self.model2.base = baseTransform * transl(-0.5,0,0.127) * rpy2tr(0, 0, -pi/2);
         end
         %% Function to render Dobot using modelled ply files
         function RenderDobot(self)
@@ -624,6 +628,15 @@ classdef Dobot < handle
             else % ie. not in any reasonable range
                 inBoundary = 0;
             end
+        end
+        %% Function to check joint limits
+        function inLimits = CheckJointLimits(self, currentJointAngles)
+            inLimits(1) = (currentJointAngles(1) >= self.model.qlim(1,1)) && (currentJointAngles(1) <= self.model.qlim(1,2));
+            inLimits(2) = (currentJointAngles(2) >= self.model.qlim(2,1)) && (currentJointAngles(1) <= self.model.qlim(2,2));
+            inLimits(3) = (currentJointAngles(3) >= self.model.qlim(3,1)) && (currentJointAngles(1) <= self.model.qlim(3,2));
+            inLimits(4) = (currentJointAngles(4) >= self.model.qlim(4,1)) && (currentJointAngles(1) <= self.model.qlim(4,2));
+            inLimits(5) = ((currentJointAngles(5) - pi/2 + currentJointAngles(4) + currentJointAngles(3)) == 0); % link5 = pi/2 - link3 - link4;
+            inLimits(6) = (currentJointAngles(6) >= self.model.qlim(6,1)) && (currentJointAngles(1) <= self.model.qlim(6,2));
         end
     end    
 end
