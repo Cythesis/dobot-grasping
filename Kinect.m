@@ -1,10 +1,9 @@
-classdef Kinect
-    properties
+classdef Kinect < handle
+    properties (Access = public)
         tKinect
         arPoseSub
         tag
         msgs
-        i
     end
     methods
         function self = Kinect()
@@ -12,10 +11,9 @@ classdef Kinect
                                  0   -1.0000   -0.0000    0.2170;...
                                  0    0.0000   -1.0000    0.8828;...
                                  0         0         0    1.0000];
-            self.i = 1;
             
             %subscribe to ros topic
-%             self.arPoseSub = rossubscriber("/tf",@self.ArCallback ,"BufferSize", 15);
+            self.arPoseSub = rossubscriber("/tf",@self.ArCallback ,"BufferSize", 15);
             
 %             self.msgs.msg = rosmessage('tf2_msgs/TFMessage');
             
@@ -139,24 +137,20 @@ classdef Kinect
             
         end
         
-        function self = set.msgs(self, message)
-            self.msgs(end+1).msg = message
-        end
-        
         function Test(self)
-            self.msgs(end+1).msg.Transforms.ChildFrameId
+            for i = 1:length(self.msgs)
+                self.msgs(i).msg.Transforms.ChildFrameId
+            end
+            
         end
 %         
-%         function self = ArCallback(self, ~, message)
-%             self.msgs.msg = message;
-% %             msgs(msg_i).msg.Transforms.ChildFrameId
-% %             
-%             self.i = self.i + 1
-% %             
-% %             if self.i > 15
-% %                 self.i = 15
-% %                 self.msgs(1) = []
-% %             end
-%         end
+        function ArCallback(self, ~, message)
+%             message.Transforms.ChildFrameId
+            self.msgs(end+1).msg = message;
+            self.msgs(4).msg.Transforms.ChildFrameId
+            if length(self.msgs) > 15
+                self.msgs(1) = [];
+            end
+        end
     end
 end

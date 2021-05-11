@@ -4,9 +4,9 @@
     rosinit
     
     kinectCamera = Kinect
-    arPoseSub = rossubscriber("/tf",@ArCallback ,"BufferSize", 15);
+%     arPoseSub = rossubscriber("/tf",@kinectCamera.ArCallback ,"BufferSize", 15);
     
-    disp('flag 2')
+%     disp('flag 2')
     
 %     T = kinectCamera.GetTargetRaw(3);
 %     disp('tag 0')
