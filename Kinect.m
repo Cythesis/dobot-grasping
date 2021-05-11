@@ -3,6 +3,8 @@ classdef Kinect
         tKinect
         arPoseSub
         tag
+        msgs
+        i
     end
     methods
         function self = Kinect()
@@ -10,12 +12,17 @@ classdef Kinect
                                  0   -1.0000   -0.0000    0.2170;...
                                  0    0.0000   -1.0000    0.8828;...
                                  0         0         0    1.0000];
+            self.i = 1;
+            
             %subscribe to ros topic
-            self.arPoseSub = rossubscriber("/tf");
+%             self.arPoseSub = rossubscriber("/tf",@self.ArCallback ,"BufferSize", 15);
+            
+%             self.msgs.msg = rosmessage('tf2_msgs/TFMessage');
             
             self.tag = ["ar_marker_0", ...
                    "ar_marker_1", ...
                    "ar_marker_2"];
+%                disp('flag 1')
         end
         
 %         function SetCalibrationTransform(self, inputTransform)
@@ -28,9 +35,9 @@ classdef Kinect
         
         function tRaw = GetTargetRaw(self, selectedTag)
             errorFlag = 1;
-            num = 14;
-            
-            s = self.tag(selectedTag+1);
+%             sample = self.msgs;
+            num = length(sample)
+%             s = self.tag(selectedTag+1);
             
 %             msg = zeros(1,num);
 %             for i = 1:num
@@ -42,23 +49,23 @@ classdef Kinect
             disp('searching for tag')
             for i = 1:num
                 msg = receive(self.arPoseSub);
-%                 ID = msg(i).Transforms.ChildFrameId;
-%                 ID = msg.Transforms.ChildFrameId;
-%                 ID = split(ID,"_");
-%                 ID = ID(3);
-%                 ID = ID{1,1};
-%                 ID = str2double(ID);
-% %                 disp(ID)
-%                 if ID == selectedTag
-% %                     index = i;
-% %                     disp("index = "+ i)
-%                     errorFlag = 0;
-%                     break
-%                 end
-                if msg.Transforms.ChildFrameId == s
+%                 ID = sample(i).Transforms.ChildFrameId;
+                ID = msg.Transforms.ChildFrameId;
+                ID = split(ID,"_");
+                ID = ID(3);
+                ID = ID{1,1};
+                ID = str2double(ID);
+                disp(ID)
+                if ID == selectedTag
+                    index = i;
+                    disp("index = "+ i)
                     errorFlag = 0;
                     break
                 end
+%                 if msg.Transforms.ChildFrameId == s
+%                     errorFlag = 0;
+%                     break
+%                 end
             end
             
             if errorFlag == 1
@@ -68,11 +75,13 @@ classdef Kinect
             end
            
 %             translation = msg(index).Transforms.Transform.Translation;
-            translation = msg.Transforms.Transform.Translation;
+            translation = sample(index).Transforms.Transform.Translation;
+%             translation = msg.Transforms.Transform.Translation;
             translationT = transl(translation.X, translation.Y, translation.Z);
            
 %             rotation = msg(index).Transforms.Transform.Rotation;
-            rotation = msg.Transforms.Transform.Rotation;
+            rotation = sample(index).Transforms.Transform.Rotation;
+%             rotation = msg.Transforms.Transform.Rotation;
             quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
             euler = quat2eul(quaternion);
             rotationT = rpy2tr(euler);
@@ -129,5 +138,25 @@ classdef Kinect
             tGlobe = self.tKinect * tRaw;
             
         end
+        
+        function self = set.msgs(self, message)
+            self.msgs(end+1).msg = message
+        end
+        
+        function Test(self)
+            self.msgs(end+1).msg.Transforms.ChildFrameId
+        end
+%         
+%         function self = ArCallback(self, ~, message)
+%             self.msgs.msg = message;
+% %             msgs(msg_i).msg.Transforms.ChildFrameId
+% %             
+%             self.i = self.i + 1
+% %             
+% %             if self.i > 15
+% %                 self.i = 15
+% %                 self.msgs(1) = []
+% %             end
+%         end
     end
 end
