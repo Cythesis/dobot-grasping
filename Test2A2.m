@@ -9,6 +9,8 @@ workspace = Workspace(realRobotToggle, simulationToggle, dobotBaseTransform, wor
 ROSCom = RosPublish(realRobotToggle);
 controller = Controller(workspace, ROSCom);
 
+%% Store and retrieval tests
+
 % controller.StoreContainer('Salt', 4)
 % controller.StoreContainer('Salt2', 4)
 % controller.RetrieveContainer('Salt')
@@ -21,3 +23,8 @@ controller = Controller(workspace, ROSCom);
 % controller.StoreContainer('Chilli3', 4)
 % controller.RetrieveContainer('Basil')
 
+%% Other tests
+% 
+controller.ROSCom1.MoveBelt(1, -20000);
+pause(4)
+controller.ROSCom1.MoveBelt(0, 0);

@@ -55,7 +55,7 @@ classdef Controller < handle
             currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateUp, self.dobotShortSteps);
             
             % Move to initial 'ready' linear rail position
-            linRailPos = -0.65;
+            linRailPos = -0.75;
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortSteps);
             
             % Move container along the conveyor
@@ -71,8 +71,8 @@ classdef Controller < handle
                 self.workspace1.AnimateContainer(containerIndex, containerConveyStart, containerConveyEnd, self.conveyorSteps);
             end
             if (self.workspace1.realRobotToggle == 1)
-                self.ROSCom1.MoveBelt(1,10000);
-                pause(3)
+                self.ROSCom1.MoveBelt(1,17500);
+                pause(5.25)
                 self.ROSCom1.MoveBelt(0,0);
             end
             
@@ -197,7 +197,7 @@ classdef Controller < handle
                 currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateUp, self.dobotShortSteps);
             else
                 currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateUp, self.dobotShortSteps);
-                linRailPos = -0.65;
+                linRailPos = -0.75;
                 currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortSteps);
             end
             % If shelf 1: move to lin rail approach position, if shelf 2: move to lin rail x = target storage location X
@@ -212,7 +212,8 @@ classdef Controller < handle
             [linRailPos, ~] = self.workspace1.Dobot1.GetLinRailPos(currentJointAngles, storageLocation);
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
             targetTransform = storageLocation;
-            targetTransform(3,4) = (storageLocation(3,4) + 0.015);
+            targetTransform(3,4) = (storageLocation(3,4) + 0.00);
+            targetTransform(2,4) = (storageLocation(2,4) - 0.01);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortSteps);
             
@@ -226,11 +227,12 @@ classdef Controller < handle
             end
             
             targetTransform = storageLocation;
+            targetTransform(2,4) = (storageLocation(2,4) - 0.01);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             
             % Lift end effector + container back up plus a little
-            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0, 0, 0.01);
+            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0, 0, 0.005);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             
@@ -257,14 +259,14 @@ classdef Controller < handle
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, dropTransform);
             currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortSteps);
             if (self.workspace1.realRobotToggle == 1)
-                self.ROSCom1.MoveTool(1);
+                self.ROSCom1.MoveTool(0);
             end
             
             % Return end effector to top position and run item off conveyor belt
             currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateUp, self.dobotShortSteps);
             if (self.workspace1.realRobotToggle == 1)
-                self.ROSCom1.MoveBelt(1,-10000);
-                pause(3)
+                self.ROSCom1.MoveBelt(1,-17500);
+                pause(6.25)
                 self.ROSCom1.MoveBelt(0,0);
             end
             if (self.workspace1.simulationToggle == 1)
@@ -557,7 +559,7 @@ classdef Controller < handle
                 actualRealJointAngles = self.ROSCom1.GetJoint();
                 actualLinRailPos = self.ROSCom1.GetRail();
                 [modelJointAngles, modelLinRailPos] = self.workspace1.Dobot1.GetModelJointAngles(actualRealJointAngles, actualLinRailPos);
-                % newJointAngles = [modelLinRailPos, modelJointAngles];
+                newJointAngles = [modelLinRailPos, modelJointAngles];
             end
         end
         
@@ -573,7 +575,7 @@ classdef Controller < handle
                 actualRealJointAngles = self.ROSCom1.GetJoint();
                 actualLinRailPos = self.ROSCom1.GetRail();
                 [modelJointAngles, modelLinRailPos] = self.workspace1.Dobot1.GetModelJointAngles(actualRealJointAngles, actualLinRailPos);
-                % newJointAngles = [modelLinRailPos, modelJointAngles];
+                newJointAngles = [modelLinRailPos, modelJointAngles];
             end
         end
     end

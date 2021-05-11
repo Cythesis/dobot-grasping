@@ -164,8 +164,8 @@ classdef Dobot < handle
             % Create another SerialLink() object for non-linear rail model
             self.model2 = SerialLink(links2, 'name', self.name);
             % Adjust base locations
-            self.model.base = baseTransform * transl(-0.5,0,0.127) * rpy2tr(pi/2, -pi/2, 0);
-            self.model2.base = baseTransform * transl(-0.5,0,0.127) * rpy2tr(0, 0, -pi/2);
+            self.model.base = baseTransform * transl(-0.5,0,0.1384) * rpy2tr(pi/2, -pi/2, 0);
+            self.model2.base = baseTransform * transl(-0.5,0,0.1384) * rpy2tr(0, 0, -pi/2);
         end
         %% Function to render Dobot using modelled ply files
         function RenderDobot(self)
@@ -261,10 +261,16 @@ classdef Dobot < handle
                     if (totalPossiblePositions == 0)
                         disp("Couldn't find an in-range linear rail position. ")
                         linRailPos = currentJointAngles(1);
-                    else
+                    elseif (sum(possiblePositionIndexes) < 115)
                         % use the position in the middle of the set of
-                        % possible positions as the final linear rail pos
+                    ceil(totalPossiblePositions/2)    % possible positions as the final linear rail pos
                         midPosition = checkPositions(ceil(totalPossiblePositions/2) + firstPossiblePositionIndex);
+                        % Convert global position back to the joint space
+                        linRailPos = ((midPosition - self.model.base(1,4)) * -1);
+                    else
+                        % use the position 60 positions along because the
+                        % number of positions are too many
+                        midPosition = checkPositions(60 + firstPossiblePositionIndex);
                         % Convert global position back to the joint space
                         linRailPos = ((midPosition - self.model.base(1,4)) * -1);
                     end

@@ -17,13 +17,13 @@ classdef Workspace < handle
         platformStepHeight = 0.052;
         % Conveyor:
         conveyorOffset = [0.35, 0.217, 0.052];
-        conveyorHeight = 0.057;
+        conveyorHeight = 0.06;
         conveyorFullLength = 0.696;
         % Frame
         frameOffset = [0, 0.042, -0.012];
-        shelf1Height = 0.075;
+        shelf1Height = 0.0786;
         shelf1YOffset = 0.0924;
-        shelf2Height = 0.205;
+        shelf2Height = 0.2095;
         shelf2YOffset = 0.23;
         shelfXOffset = 0.06125;
         % Kinect
