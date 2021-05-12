@@ -6,10 +6,194 @@ Dobot1.model.teach();
 %% Test section
 
 q = Dobot1.model.getpos;
-q(1) = 0;
+q(1) = -0.6;
 Dobot1.model.animate(q);
 [~, allT] = Dobot1.model.fkine(q);
 link1T = allT(:,:,1);
+
+%% Collision detector
+
+q = [-0.6, deg2rad([90, 45,  115, -30, 0])];
+Dobot1.model.animate(q);
+Dobot1.model.teach()
+
+% Make some obstacles
+hold on
+PlaceObject('ConveyorBelt.ply', [0.35, 0.217, 0.052]);
+containerLink = Link('alpha',0,'a',0.001,'d',0,'offset',0);
+container.model = SerialLink(containerLink, 'name', 'Container');
+container.model.base = transl(0.175, 0.215, 0.16);
+[faceData, vertexData, plyData] = plyread('Container1.ply','tri');
+container.model.faces = {faceData, []};
+container.model.points = {vertexData, []};
+plot3d(container.model, 0,'noarrow');
+if isempty(findobj(get(gca,'Children'),'Type','Light'))
+    camlight
+end 
+handles = findobj('Tag', container.model.name);
+h = get(handles,'UserData');
+try
+    h.link(1).Children.FaceVertexCData = [plyData.vertex.red ...
+                                          , plyData.vertex.green ...
+                                          , plyData.vertex.blue]/255;
+    h.link(1).Children.FaceColor = 'interp';
+catch
+    disp("No colour in ply file")
+end
+
+% Ellipses for all robot links
+[~, linkTransforms] = Dobot1.model.fkine(q);
+%rotate(h, [0 0 1], 45);
+for linkIndex = 1:(Dobot1.model.n)
+    switch linkIndex
+        case 1
+            centrePoint = [linkTransforms(1,4,linkIndex), -0.06, (linkTransforms(3,4,linkIndex) - 0.04)];
+            radii = [0.13, 0.16, (linkTransforms(3,4,linkIndex) + 0.025)/2];  
+            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+            linkEllipsoids(linkIndex) = surf(x,y,z);
+        case 2
+            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2 + 0.015];
+            radii = [0.1, 0.075, 0.1];
+            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+            linkEllipsoids(linkIndex) = surf(x,y,z);
+            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
+        case 3
+            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+            radii = [0.05, 0.05, 0.05];
+            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+            linkEllipsoids(linkIndex) = surf(x,y,z);
+            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
+            rotate(linkEllipsoids(linkIndex), [1 0 0], rad2deg(-q(3)));
+        case 4
+            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+            radii = [0.05, 0.05, 0.05];
+            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+            linkEllipsoids(linkIndex) = surf(x,y,z);
+            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
+            rotate(linkEllipsoids(linkIndex), [1 0 0], rad2deg(q(3) + q(4)));
+        case 5
+            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+            radii = [0.05, 0.05, 0.05];
+            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+            linkEllipsoids(linkIndex) = surf(x,y,z);
+            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
+        case 6
+            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+            radii = [0.05, 0.05, 0.05];
+            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+            linkEllipsoids(linkIndex) = surf(x,y,z);
+            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
+        otherwise
+            disp("There is a problem. ")
+    end
+    
+    alpha(linkEllipsoids(linkIndex), 0.1);
+end
+
+% Rectangle prism point cloud for all objects to avoid
+
+
+
+
+
+
+
+
+% IsCollision Function
+% Inputs: a serial link robot model, a path of q values in a matrix, a set
+% of faces, set of vertices, and set of face normals
+% function result = IsCollision(robot,qMatrix,faces,vertex,faceNormals)
+%     result = false;
+%     for qIndex = 1:size(qMatrix, 1)
+%         % Get the transform of every joint (i.e. start and end of every link)
+%         [~, linkTransforms] = robot.fkine(qMatrix(qIndex, :));
+%         % Go through each link and also each triangle face
+%         for linkIndex = 1 : (size(linkTransforms, 3) - 1)
+%             
+%             for faceIndex = 1:size(faces, 1)
+%                 
+%                 vertOnPlane = vertex(faces(faceIndex, 1)', :);
+%                 
+%                 [intersectP, check] = FindLinePlaneIntersection(faceNormals(faceIndex, :), ...
+%                             vertOnPlane, linkTransforms(1:3, 4, linkIndex)', ...
+%                             linkTransforms(1:3, 4, linkIndex + 1)'); 
+%                 
+%                 if check == 1 && CheckIsIntersectionPointInsideTriangle(intersectP,vertex(faces(faceIndex,:)',:))
+%                     plot3(intersectP(1),intersectP(2),intersectP(3),'g*');
+%                     display('Intersection');
+%                     result = true;
+%                     return
+%                 end
+%             end    
+%         end
+%     end
+% end
+% 
+% function result = CheckIsIntersectionPointInsideTriangle(intersectP,triangleVerts)
+% 
+%     u = triangleVerts(2,:) - triangleVerts(1,:);
+%     v = triangleVerts(3,:) - triangleVerts(1,:);
+% 
+%     uu = dot(u,u);
+%     uv = dot(u,v);
+%     vv = dot(v,v);
+% 
+%     w = intersectP - triangleVerts(1,:);
+%     wu = dot(w,u);
+%     wv = dot(w,v);
+% 
+%     D = uv * uv - uu * vv;
+% 
+%     % Get and test parametric coords (s and t)
+%     s = (uv * wv - vv * wu) / D;
+%     if (s < 0.0 || s > 1.0)        % intersectP is outside Triangle
+%         result = 0;
+%         return;
+%     end
+% 
+%     t = (uv * wu - uu * wv) / D;
+%     if (t < 0.0 || (s + t) > 1.0)  % intersectP is outside Triangle
+%         result = 0;
+%         return;
+%     end
+% 
+%     result = 1;                      % intersectP is in Triangle
+% end
+
+%% LinePlaneIntersection
+% Given a plane (normal and point) and two points that make up another line, get the intersection
+% Check == 0 if there is no intersection
+% Check == 1 if there is a line plane intersection between the two points
+% Check == 2 if the segment lies in the plane (always intersecting)
+% Check == 3 if there is intersection point which lies outside line segment
+function [intersectionPoint,check] = FindLinePlaneIntersection(planeNormal,pointOnPlane,point1OnLine,point2OnLine)
+
+    intersectionPoint = [0 0 0];
+    u = point2OnLine - point1OnLine;
+    w = point1OnLine - pointOnPlane;
+    D = dot(planeNormal,u);
+    N = -dot(planeNormal,w);
+    check = 0; %#ok<NASGU>
+    if abs(D) < 10^-7        % The segment is parallel to plane
+        if N == 0           % The segment lies in plane
+            check = 2;
+            return
+        else
+            check = 0;       %no intersection
+            return
+        end
+    end
+
+    %compute the intersection parameter
+    sI = N / D;
+    intersectionPoint = point1OnLine + sI.*u;
+
+    if (sI < 0 || sI > 1)
+        check= 3;          %The intersection point  lies outside the segment, so there is no intersection
+    else
+        check=1;
+    end
+end
 
 %% New method random point generator
 % 
@@ -445,74 +629,74 @@ link1T = allT(:,:,1);
 
 %% Boundary circle plot
 
-C1 = [-0.25,Dobot1.rangeCircle1.normalDistOrigin,Dobot1.rangeCircle1.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
-C2 = [-0.25,Dobot1.rangeCircle2.normalDistOrigin,Dobot1.rangeCircle2.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
-C3 = [-0.25,Dobot1.rangeCircle3.normalDistOrigin,Dobot1.rangeCircle3.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
-C4 = [-0.25,Dobot1.rangeCircle4.normalDistOrigin,Dobot1.rangeCircle4.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
-
-constZOffset = 0.127;
-constXOffset = 0;
-
-C1b = [0.25, 0.19973 + constXOffset, 0.04509 + constZOffset];
-C2b = [0.25, 0.05919 + constXOffset, 0.00000 + constZOffset];
-C3b = [0.25, 0.04549 + constXOffset, 0.13204 + constZOffset];
-C4b = [0.25, 0.07503 + constXOffset, -0.14462 + constZOffset];
-
-R1 = Dobot1.rangeCircle1.radius;    % Radius of circle 
-R2 = Dobot1.rangeCircle2.radius;    % Radius of circle 
-R3 = Dobot1.rangeCircle3.radius;    % Radius of circle 
-R4 = Dobot1.rangeCircle4.radius;    % Radius of circle 
-
-R1b = (0.26845/2);
-R2b = (0.55487/2);
-R3b = (0.28769/2);
-R4b = (0.26803/2);
-
-theta = 0:0.01:2*pi;
-thetaB = 0:0.01:pi/2;
-
-z1 = C1(3)+ R1*cos(thetaB);
-y1 = C1(2)+ R1*sin(thetaB);
-x1 = C1(1)+ zeros(size(z1));
-
-z2 = C2(3)+ R2*cos(theta);
-y2 = C2(2)+ R2*sin(theta);
-x2 = C2(1)+ zeros(size(z2));
-
-z3 = C3(3)+ R3*cos(theta);
-y3 = C3(2)+ R3*sin(theta);
-x3 = C3(1)+ zeros(size(z3));
-
-z4 = C4(3)+ R4*cos(theta);
-y4 = C4(2)+ R4*sin(theta);
-x4 = C4(1)+ zeros(size(z4));
-
-z1b = C1b(3)+ R1b*cos(theta);
-y1b = C1b(2)+ R1b*sin(theta);
-x1b = C1b(1)+ zeros(size(z1b));
-
-z2b = C2b(3)+ R2b*cos(theta);
-y2b = C2b(2)+ R2b*sin(theta);
-x2b = C2b(1)+ zeros(size(z2b));
-
-
-z3b = C3b(3)+ R3b*cos(theta);
-y3b = C3b(2)+ R3b*sin(theta);
-x3b = C3b(1)+ zeros(size(z3b));
-
-z4b = C4b(3)+ R4b*cos(theta);
-y4b = C4b(2)+ R4b*sin(theta);
-x4b = C4b(1)+ zeros(size(z4b));
-
-hold on
-plot3(x1,y1,z1, 'red')
-plot3(x2,y2,z2, 'blue')
-plot3(x3,y3,z3, 'green')
-plot3(x4,y4,z4, 'k')
-
-hold on
-plot3(x1b,y1b,z1b, 'red')
-plot3(x2b,y2b,z2b, 'blue')
-plot3(x3b,y3b,z3b, 'green')
-plot3(x4b,y4b,z4b, 'k')
-
+% C1 = [-0.25,Dobot1.rangeCircle1.normalDistOrigin,Dobot1.rangeCircle1.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
+% C2 = [-0.25,Dobot1.rangeCircle2.normalDistOrigin,Dobot1.rangeCircle2.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
+% C3 = [-0.25,Dobot1.rangeCircle3.normalDistOrigin,Dobot1.rangeCircle3.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
+% C4 = [-0.25,Dobot1.rangeCircle4.normalDistOrigin,Dobot1.rangeCircle4.zDistOrigin + Dobot1.model.base(3,4)] ;   % center of circle 
+% 
+% constZOffset = 0.127;
+% constXOffset = 0;
+% 
+% C1b = [0.25, 0.19973 + constXOffset, 0.04509 + constZOffset];
+% C2b = [0.25, 0.05919 + constXOffset, 0.00000 + constZOffset];
+% C3b = [0.25, 0.04549 + constXOffset, 0.13204 + constZOffset];
+% C4b = [0.25, 0.07503 + constXOffset, -0.14462 + constZOffset];
+% 
+% R1 = Dobot1.rangeCircle1.radius;    % Radius of circle 
+% R2 = Dobot1.rangeCircle2.radius;    % Radius of circle 
+% R3 = Dobot1.rangeCircle3.radius;    % Radius of circle 
+% R4 = Dobot1.rangeCircle4.radius;    % Radius of circle 
+% 
+% R1b = (0.26845/2);
+% R2b = (0.55487/2);
+% R3b = (0.28769/2);
+% R4b = (0.26803/2);
+% 
+% theta = 0:0.01:2*pi;
+% thetaB = 0:0.01:pi/2;
+% 
+% z1 = C1(3)+ R1*cos(thetaB);
+% y1 = C1(2)+ R1*sin(thetaB);
+% x1 = C1(1)+ zeros(size(z1));
+% 
+% z2 = C2(3)+ R2*cos(theta);
+% y2 = C2(2)+ R2*sin(theta);
+% x2 = C2(1)+ zeros(size(z2));
+% 
+% z3 = C3(3)+ R3*cos(theta);
+% y3 = C3(2)+ R3*sin(theta);
+% x3 = C3(1)+ zeros(size(z3));
+% 
+% z4 = C4(3)+ R4*cos(theta);
+% y4 = C4(2)+ R4*sin(theta);
+% x4 = C4(1)+ zeros(size(z4));
+% 
+% z1b = C1b(3)+ R1b*cos(theta);
+% y1b = C1b(2)+ R1b*sin(theta);
+% x1b = C1b(1)+ zeros(size(z1b));
+% 
+% z2b = C2b(3)+ R2b*cos(theta);
+% y2b = C2b(2)+ R2b*sin(theta);
+% x2b = C2b(1)+ zeros(size(z2b));
+% 
+% 
+% z3b = C3b(3)+ R3b*cos(theta);
+% y3b = C3b(2)+ R3b*sin(theta);
+% x3b = C3b(1)+ zeros(size(z3b));
+% 
+% z4b = C4b(3)+ R4b*cos(theta);
+% y4b = C4b(2)+ R4b*sin(theta);
+% x4b = C4b(1)+ zeros(size(z4b));
+% 
+% hold on
+% plot3(x1,y1,z1, 'red')
+% plot3(x2,y2,z2, 'blue')
+% plot3(x3,y3,z3, 'green')
+% plot3(x4,y4,z4, 'k')
+% 
+% hold on
+% plot3(x1b,y1b,z1b, 'red')
+% plot3(x2b,y2b,z2b, 'blue')
+% plot3(x3b,y3b,z3b, 'green')
+% plot3(x4b,y4b,z4b, 'k')
+% 
