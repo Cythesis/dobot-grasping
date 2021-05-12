@@ -72,7 +72,7 @@ classdef Controller < handle
             end
             if (self.workspace1.realRobotToggle == 1)
                 self.ROSCom1.MoveBelt(1,17500);
-                pause(5.25)
+                pause(5)
                 self.ROSCom1.MoveBelt(0,0);
             end
             
@@ -100,7 +100,7 @@ classdef Controller < handle
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
 
             % Lift container off the conveyor belt a bit
-            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0.065, -0.025, 0.025);
+            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0.065, -0.045, 0.025);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortSteps);
          
@@ -430,12 +430,26 @@ classdef Controller < handle
                 [modelJointAngles, modelLinRailPos] = self.workspace1.Dobot1.GetModelJointAngles(actualRealJointAngles, actualLinRailPos);
                 currentJointAngles = [modelLinRailPos, modelJointAngles];
             end
+            % Initialise OS dependent controller readings
+            leftJoystickHorizontal = 1;
+            leftJoystickVertical = 2;
+            if (ispc)
+                rightJoystickHorizontal = 3;
+                rightJoystickVertical = 6;
+            elseif (isunix)
+                rightJoystickHorizontal = 4;
+                rightJoystickVertical = 5;
+            else
+                disp("If you are using MacOS, please reconsider. ")
+                return
+            end
             % Initialise RMRC parameters. Can be tuned for smoother operation
             dT = 0.15;      % Time step
             counter = 0;    % Loop counter
             axisGain = 0.03; % Amount for distance per tick gain on robot joints
             railGain = 0.05; % Amount of distance per tick gain on linear rail
             lambda = 0.1;   % Damping coefficient
+            pickedUp = 0;
             tic;            % Start time
             % Commence control loop, idle until there is user input.
             % Indefinite loop until remote control check is cleared by GUI.
@@ -443,12 +457,12 @@ classdef Controller < handle
                 % Iterate counter
                 counter = counter + 1;
                 % Obtain joystick data
-                [axes, ~, ~] = read(DS4Controller);
+                [axes, buttons, ~] = read(DS4Controller);
                 % Convert joystick input to an axial / rail velocity
-                xVelocity = axisGain * axes(1);
-                yVelocty = axisGain * -axes(6);
-                zVelocity = axisGain * -axes(2);
-                linRailVelocity = railGain * -axes(3);
+                xVelocity = axisGain * axes(leftJoystickHorizontal);
+                yVelocty = axisGain * -axes(rightJoystickVertical);
+                zVelocity = axisGain * -axes(leftJoystickVertical);
+                linRailVelocity = railGain * -axes(rightJoystickHorizontal);
                 % Use jacobian with DLS to determine joint velocities; use
                 % 6 link model which includes linear rail for "supposedly
                 % actuated" jacobian 
@@ -472,17 +486,33 @@ classdef Controller < handle
                     currentJointAngles(jointLimitIndex) = prevJointAngles(jointLimitIndex);
                     currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
                 end
-                % Update simulation or real robot if any have changed:
-%                 if any(currentJointAngles(2:end) - prevJointAngles(2:end))
-%                     self.JointCommand(prevJointAngles, currentJointAngles(2:end), 1);
-%                 end
-%                 if any(currentJointAngles(1) - prevJointAngles(1))
-%                     self.LinearRailCommand(prevJointAngles, currentJointAngles(1), 1);
-%                 end
+                % Pick up container with button press if nearby
+                endEffTr = self.workspace1.Dobot1.model.fkine(currentJointAngles);
+                if (buttons(1)) && (pickedUp == 0)
+                    if ~(isempty(self.workspace1.containerStorage))
+                        for i = 1:size(self.workspace1.containerStorage, 2)
+                            containerTr = self.workspace1.containerStorage(i).model.base;
+                            dist = sqrt((endEffTr(1,4) - containerTr(1,4))^2 + (endEffTr(2,4) - containerTr(2,4))^2 + (endEffTr(3,4) - containerTr(3,4))^2);
+                            if (dist < 0.015)
+                                disp("Picking up container... ")
+                                pickedUp = i;
+                                break
+                            end
+                        end
+                    end
+                end
+                if (pickedUp ~= 0)
+                    self.workspace1.containerStorage(pickedUp).model.base(1:3, 4) = endEffTr(1:3, 4);
+                    self.workspace1.containerStorage(pickedUp).model.animate(0);
+                    if buttons(2)
+                        disp("Dropping container... ")
+                        pickedUp = 0;
+                    end
+                end
                 self.workspace1.Dobot1.model.animate(currentJointAngles)
                 % Check loop time in case it is running longer than dT
                 if (toc > dT * counter)
-                    disp("Loop time exceeded allocated time step in remote control function. ")
+                    % disp("Loop time exceeded allocated time step in remote control function. ")
                 end
                 % Pause until dT has passed for this iteration
                 while (toc < dT * counter)

@@ -24,7 +24,3 @@ controller = Controller(workspace, ROSCom);
 % controller.RetrieveContainer('Basil')
 
 %% Other tests
-% 
-% controller.ROSCom1.MoveBelt(1, -20000);
-% pause(4)
-% controller.ROSCom1.MoveBelt(0, 0);
