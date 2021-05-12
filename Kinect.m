@@ -1,69 +1,50 @@
 classdef Kinect < handle
     properties (Access = public)
-        tKinect
-        arPoseSub
-        tag
-        msgs
+        tKinect     % global location of Kinect
+        arPoseSub   % ROS subscriber to /tf topic     
+        msgs        % Struct array of 
     end
     methods
         function self = Kinect()
-            self.tKinect = [1.0000         0         0         0;...
+            %default kinect transform
+            self.tKinect = [1.0000         0         0   -0.2000;...
                                  0   -1.0000   -0.0000    0.2170;...
                                  0    0.0000   -1.0000    0.8828;...
                                  0         0         0    1.0000];
             
             %subscribe to ros topic
-            self.arPoseSub = rossubscriber("/tf",@self.ArCallback ,"BufferSize", 15);
-            
-%             self.msgs.msg = rosmessage('tf2_msgs/TFMessage');
-            
-            self.tag = ["ar_marker_0", ...
-                   "ar_marker_1", ...
-                   "ar_marker_2"];
-%                disp('flag 1')
+            self.arPoseSub = rossubscriber("/tf",@self.ArCallback ,"BufferSize", 20);
         end
         
-%         function SetCalibrationTransform(self, inputTransform)
-%             self.tKinect = inputTransform;
-%         end
+        function SetCalibrationTransform(self, inputTransform)
+            self.tKinect = inputTransform;
+        end
         
-%         function FindCalibration(self)
-%             
-%         end
+        function FindCalibrationTransform(self, tGlobeMarker)
+            tCamMarker = self.GetTargetRaw(0);
+            self.tKinect = tGlobeMarker/tCamMarker;
+        end
         
         function tRaw = GetTargetRaw(self, selectedTag)
             errorFlag = 1;
-%             sample = self.msgs;
-            num = length(sample)
-%             s = self.tag(selectedTag+1);
-            
-%             msg = zeros(1,num);
-%             for i = 1:num
-%                 disp(i)
-%                 msg(i) = receive(self.arPoseSub);
-%                 disp('message received')
-%             end
+            sample = self.msgs;
+            num = length(sample);
             
             disp('searching for tag')
+            
             for i = 1:num
-                msg = receive(self.arPoseSub);
-%                 ID = sample(i).Transforms.ChildFrameId;
-                ID = msg.Transforms.ChildFrameId;
+                ID = sample(i).msg.Transforms.ChildFrameId;
                 ID = split(ID,"_");
                 ID = ID(3);
                 ID = ID{1,1};
                 ID = str2double(ID);
-                disp(ID)
+%                 disp(ID)
                 if ID == selectedTag
                     index = i;
-                    disp("index = "+ i)
+%                     disp("index = "+ i)
                     errorFlag = 0;
                     break
                 end
-%                 if msg.Transforms.ChildFrameId == s
-%                     errorFlag = 0;
-%                     break
-%                 end
             end
             
             if errorFlag == 1
@@ -71,20 +52,15 @@ classdef Kinect < handle
                 tRaw = 0;
                 return
             end
-           
-%             translation = msg(index).Transforms.Transform.Translation;
-            translation = sample(index).Transforms.Transform.Translation;
-%             translation = msg.Transforms.Transform.Translation;
+            translation = sample(index).msg.Transforms.Transform.Translation;
             translationT = transl(translation.X, translation.Y, translation.Z);
            
-%             rotation = msg(index).Transforms.Transform.Rotation;
-            rotation = sample(index).Transforms.Transform.Rotation;
-%             rotation = msg.Transforms.Transform.Rotation;
+            rotation = sample(index).msg.Transforms.Transform.Rotation;
             quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
             euler = quat2eul(quaternion);
             rotationT = rpy2tr(euler);
             
-            tRaw = translationT*rotationT;            
+            tRaw = translationT*rotationT            
         end
         
         function tGlobe = RetrieveFood(self, selectedTag)
@@ -145,10 +121,8 @@ classdef Kinect < handle
         end
 %         
         function ArCallback(self, ~, message)
-%             message.Transforms.ChildFrameId
             self.msgs(end+1).msg = message;
-            self.msgs(4).msg.Transforms.ChildFrameId
-            if length(self.msgs) > 15
+            if length(self.msgs) > 20
                 self.msgs(1) = [];
             end
         end
