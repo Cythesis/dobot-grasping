@@ -645,5 +645,70 @@ classdef Dobot < handle
             inLimits(5) = ((currentJointAngles(5) - pi/2 + currentJointAngles(4) + currentJointAngles(3)) == 0); % link5 = pi/2 - link3 - link4;
             inLimits(6) = (currentJointAngles(6) >= self.model.qlim(6,1)) && (currentJointAngles(1) <= self.model.qlim(6,2));
         end
+        %% Collision Detection function - check for a collision between dobot and an object
+        function checkCollision = CheckCollision(self, currentJointAngles, object)
+            [~, linkTransforms] = self.model.fkine(currentJointAngles);
+            objectTransform = object.model.base;
+            objectVertices = object.model.points;
+            checkCollision = 0;
+            numSpheres = 8;
+            radiuses = zeros(1,numSpheres);
+            centres = zeros(numSpheres,3);
+            for linkIndex = 1:size(linkTransforms, 3)
+                switch linkIndex
+                    case 2
+                        centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
+                        radius = 0.075;
+                        radiuses(1) = radius;
+                        centres(1, 1:3) = centrePoint;
+                    case 3
+                        centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
+                        radius = 0.055;
+                        radiuses(2) = radius;
+                        centres(2, 1:3) = centrePoint;
+                        centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+                        radiuses(3) = radius;
+                        centres(3, 1:3) = centrePoint;
+                    case 4
+                        centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
+                        radius = 0.04;
+                        radiuses(4) = radius;
+                        centres(4, 1:3) = centrePoint;
+                        centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+                        radius = 0.055;
+                        radiuses(5) = radius;
+                        centres(5, 1:3) = centrePoint;
+                    case 5
+                        centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
+                        radius = 0.03;
+                        radiuses(6) = radius;
+                        centres(6, 1:3) = centrePoint;
+                        centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+                        radiuses(7) = radius;
+                        centres(7, 1:3) = centrePoint;
+                    case 6
+                        radius = 0.02;
+                        centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+                        radiuses(8) = radius;
+                        centres(8, 1:3) = centrePoint;
+                end
+            end
+            points = objectVertices{1,1};
+            transforms = zeros(4,4,size(points, 1));
+            linkEllipsoids = [];
+            for i = 1:size(linkTransforms, 3)
+%                 [x,y,z] = ellipsoid(centres(i,1), centres(i,2), centres(i,3), radiuses(i), radiuses(i), radiuses(i));
+%                 linkEllipsoids(i) = surf(x,y,z);
+                for j = 1:size(points, 1)
+                    transforms(:,:,j) = objectTransform * transl(points(j,1), points(j,2), points(j,3));
+                    dist = sqrt((transforms(1,4,j) - centres(i,1))^2 + (transforms(2,4,j) - centres(i,2))^2 + (transforms(3,4,j) - centres(i,3))^2);
+                    if dist < radiuses(i)
+                        checkCollision = 1;
+                        return
+                    end
+                end
+%                 plot3(transforms(1,4,j), transforms(2,4,j), transforms(3,4,j), 'r.')
+            end
+        end
     end    
 end

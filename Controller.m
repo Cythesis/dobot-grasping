@@ -14,6 +14,8 @@ classdef Controller < handle
         dobotMidSteps = 50;
         emergencyStopCheck = 0;
         remoteControlCheck = 0;
+        cartesianToJointToggle = 0;
+        jointSetToggle = 0;
         
     end
     
@@ -406,7 +408,10 @@ classdef Controller < handle
         
         %% Function for remote control input with DS4 controller
         % Much of this code was derived from Robotics 41013 Lab 11.
-        function StartRemoteControl(self)
+        function StartRemoteControl(self, cartesianToJointToggle)
+            if (nargin < 1)
+                cartesianToJointToggle = 0;
+            end
             % Toggle the remote control check so that an indefinite loop
             % can be used for remote control
             self.remoteControlCheck = 1;
@@ -448,74 +453,163 @@ classdef Controller < handle
             counter = 0;    % Loop counter
             axisGain = 0.03; % Amount for distance per tick gain on robot joints
             railGain = 0.05; % Amount of distance per tick gain on linear rail
+            jointGain = 0.15;
             lambda = 0.1;   % Damping coefficient
-            pickedUp = 0;
+            pickedUp = 0;   % Identifier for an object if picked up
             tic;            % Start time
             % Commence control loop, idle until there is user input.
             % Indefinite loop until remote control check is cleared by GUI.
             while (self.remoteControlCheck == 1)
-                % Iterate counter
-                counter = counter + 1;
-                % Obtain joystick data
-                [axes, buttons, ~] = read(DS4Controller);
-                % Convert joystick input to an axial / rail velocity
-                xVelocity = axisGain * axes(leftJoystickHorizontal);
-                yVelocty = axisGain * -axes(rightJoystickVertical);
-                zVelocity = axisGain * -axes(leftJoystickVertical);
-                linRailVelocity = railGain * -axes(rightJoystickHorizontal);
-                % Use jacobian with DLS to determine joint velocities; use
-                % 6 link model which includes linear rail for "supposedly
-                % actuated" jacobian 
-                jacobian = self.workspace1.Dobot1.model2.jacob0(currentJointAngles(2:end));
-                jacobian3X3 = jacobian(1:3, 1:3);
-                DLSinvJacob = (transpose(jacobian3X3) * (jacobian3X3 + lambda*eye(3))) \ transpose(jacobian3X3);
-                qDotX = (DLSinvJacob(:,1) * xVelocity)';
-                qDotY = (DLSinvJacob(:,2) * yVelocty)';
-                qDotZ = (DLSinvJacob(:,3) * zVelocity)';
-                % Store previous joint angles before updating
-                prevJointAngles = currentJointAngles;
-                % Apply joint velocities to increment joint angles
-                currentJointAngles(2:4) = currentJointAngles(2:4) + ((qDotX + qDotY + qDotZ) * dT);
-                currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
-                currentJointAngles(6) = -currentJointAngles(2);
-                currentJointAngles(1) = currentJointAngles(1) + (linRailVelocity * dT);
-                % Check joint limits
-                inLimits = self.workspace1.Dobot1.CheckJointLimits(currentJointAngles);
-                if ~all(inLimits)
-                    jointLimitIndex = find(~inLimits);
-                    currentJointAngles(jointLimitIndex) = prevJointAngles(jointLimitIndex);
+                while (self.cartesianToJointToggle == 1)
+                    % Iterate counter
+                    counter = counter + 1;
+                    % Obtain joystick data
+                    [axes, buttons, ~] = read(DS4Controller);
+                    baseVelocity = 0;
+                    linRailVelocity = 0;
+                    forearmVelocity = 0;
+                    reararmVelocity = 0;
+                    if (self.jointSetToggle == 0) % joint set: linear rail + base joint
+                        baseVelocity = jointGain * axes(leftJoystickHorizontal);
+                        linRailVelocity = railGain * -axes(rightJoystickHorizontal);
+                    else % ie. joint set toggle == 1: forearm joint + reararm joint
+                        forearmVelocity = jointGain * axes(leftJoystickVertical);
+                        reararmVelocity = jointGain * axes(rightJoystickVertical);
+                    end
+                    currentJointAngles(1) = currentJointAngles(1) + (linRailVelocity * dT);
+                    currentJointAngles(2) = currentJointAngles(2) + (baseVelocity * dT);
+                    currentJointAngles(3) = currentJointAngles(3) + (forearmVelocity * dT);
+                    currentJointAngles(4) = currentJointAngles(4) + (reararmVelocity * dT);
                     currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
-                end
-                % Pick up container with button press if nearby
-                endEffTr = self.workspace1.Dobot1.model.fkine(currentJointAngles);
-                if (buttons(1)) && (pickedUp == 0)
-                    if ~(isempty(self.workspace1.containerStorage))
-                        for i = 1:size(self.workspace1.containerStorage, 2)
-                            containerTr = self.workspace1.containerStorage(i).model.base;
-                            dist = sqrt((endEffTr(1,4) - containerTr(1,4))^2 + (endEffTr(2,4) - containerTr(2,4))^2 + (endEffTr(3,4) - containerTr(3,4))^2);
-                            if (dist < 0.015)
-                                disp("Picking up container... ")
-                                pickedUp = i;
-                                break
+                    % Check joint limits
+                    inLimits = self.workspace1.Dobot1.CheckJointLimits(currentJointAngles);
+                    if ~all(inLimits)
+                        jointLimitIndex = find(~inLimits);
+                        currentJointAngles(jointLimitIndex) = prevJointAngles(jointLimitIndex);
+                        currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
+                    end
+                    % Pick up container with button press if nearby
+                    endEffTr = self.workspace1.Dobot1.model.fkine(currentJointAngles);
+                    if (buttons(1)) && (pickedUp == 0)
+                        if ~(isempty(self.workspace1.containerStorage))
+                            for i = 1:size(self.workspace1.containerStorage, 2)
+                                containerTr = self.workspace1.containerStorage(i).model.base;
+                                dist = sqrt((endEffTr(1,4) - containerTr(1,4))^2 + (endEffTr(2,4) - containerTr(2,4))^2 + (endEffTr(3,4) - containerTr(3,4))^2);
+                                if (dist < 0.015)
+                                    disp("Picking up container... ")
+                                    pickedUp = i;
+                                    break
+                                end
                             end
                         end
                     end
-                end
-                if (pickedUp ~= 0)
-                    self.workspace1.containerStorage(pickedUp).model.base(1:3, 4) = endEffTr(1:3, 4);
-                    self.workspace1.containerStorage(pickedUp).model.animate(0);
-                    if buttons(2)
-                        disp("Dropping container... ")
-                        pickedUp = 0;
+                    if (pickedUp ~= 0)
+                        self.workspace1.containerStorage(pickedUp).model.base(1:3, 4) = endEffTr(1:3, 4);
+                        self.workspace1.containerStorage(pickedUp).model.animate(0);
+                        if buttons(2)
+                            disp("Dropping container... ")
+                            pickedUp = 0;
+                        end
+                    end
+                    self.workspace1.Dobot1.model.animate(currentJointAngles)
+                    if buttons(6)
+                        if (self.jointSetToggle == 0)
+                            self.jointSetToggle = 1;
+                        else
+                            self.jointSetToggle = 0;
+                        end
+                    end
+                    if buttons(3)
+                        self.cartesianToJointToggle = 0;
+                        break
+                    end
+                    if buttons(4)
+                        self.remoteControlCheck = 0;
+                        break
+                    end
+                    if (self.remoteControlCheck == 0)
+                        break
+                    end
+                    % Pause until dT has passed for this iteration
+                    while (toc < dT * counter)
                     end
                 end
-                self.workspace1.Dobot1.model.animate(currentJointAngles)
-                % Check loop time in case it is running longer than dT
-                if (toc > dT * counter)
-                    % disp("Loop time exceeded allocated time step in remote control function. ")
-                end
-                % Pause until dT has passed for this iteration
-                while (toc < dT * counter)
+                while (self.cartesianToJointToggle == 0)
+                    % Iterate counter
+                    counter = counter + 1;
+                    % Obtain joystick data
+                    [axes, buttons, ~] = read(DS4Controller);
+                    % Convert joystick input to an axial / rail velocity
+                    xVelocity = axisGain * axes(leftJoystickHorizontal);
+                    yVelocty = axisGain * -axes(rightJoystickVertical);
+                    zVelocity = axisGain * -axes(leftJoystickVertical);
+                    linRailVelocity = railGain * -axes(rightJoystickHorizontal);
+                    % Use jacobian with DLS to determine joint velocities; use
+                    % 6 link model which includes linear rail for "supposedly
+                    % actuated" jacobian 
+                    jacobian = self.workspace1.Dobot1.model2.jacob0(currentJointAngles(2:end));
+                    jacobian3X3 = jacobian(1:3, 1:3);
+                    DLSinvJacob = (transpose(jacobian3X3) * (jacobian3X3 + lambda*eye(3))) \ transpose(jacobian3X3);
+                    qDotX = (DLSinvJacob(:,1) * xVelocity)';
+                    qDotY = (DLSinvJacob(:,2) * yVelocty)';
+                    qDotZ = (DLSinvJacob(:,3) * zVelocity)';
+                    % Store previous joint angles before updating
+                    prevJointAngles = currentJointAngles;
+                    % Apply joint velocities to increment joint angles
+                    currentJointAngles(2:4) = currentJointAngles(2:4) + ((qDotX + qDotY + qDotZ) * dT);
+                    currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
+                    currentJointAngles(6) = -currentJointAngles(2);
+                    currentJointAngles(1) = currentJointAngles(1) + (linRailVelocity * dT);
+                    % Check joint limits
+                    inLimits = self.workspace1.Dobot1.CheckJointLimits(currentJointAngles);
+                    if ~all(inLimits)
+                        jointLimitIndex = find(~inLimits);
+                        currentJointAngles(jointLimitIndex) = prevJointAngles(jointLimitIndex);
+                        currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
+                    end
+                    % Pick up container with button press if nearby
+                    endEffTr = self.workspace1.Dobot1.model.fkine(currentJointAngles);
+                    if (buttons(1)) && (pickedUp == 0)
+                        if ~(isempty(self.workspace1.containerStorage))
+                            for i = 1:size(self.workspace1.containerStorage, 2)
+                                try containerTr = self.workspace1.containerStorage(i).model.base;
+                                catch
+                                    disp("There was an error with indexing for container pickup. ")
+                                    containerTr = transl(0,0,0);
+                                end
+                                dist = sqrt((endEffTr(1,4) - containerTr(1,4))^2 + (endEffTr(2,4) - containerTr(2,4))^2 + (endEffTr(3,4) - containerTr(3,4))^2);
+                                if (dist < 0.015)
+                                    disp("Picking up container... ")
+                                    pickedUp = i;
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if (pickedUp ~= 0)
+                        self.workspace1.containerStorage(pickedUp).model.base(1:3, 4) = endEffTr(1:3, 4);
+                        self.workspace1.containerStorage(pickedUp).model.animate(0);
+                        if buttons(2)
+                            disp("Dropping container... ")
+                            pickedUp = 0;
+                        end
+                    end
+                    self.workspace1.Dobot1.model.animate(currentJointAngles)
+                    if buttons(3)
+                        self.cartesianToJointToggle = 1;
+                        break
+                    end
+                    if buttons(4)
+                        self.remoteControlCheck = 0;
+                        break
+                    end
+                    % Check loop time in case it is running longer than dT
+                    if (self.remoteControlCheck == 0)
+                        break
+                    end
+                    % Pause until dT has passed for this iteration
+                    while (toc < dT * counter)
+                    end
                 end
             end
         end

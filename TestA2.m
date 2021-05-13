@@ -13,7 +13,8 @@ link1T = allT(:,:,1);
 
 %% Collision detector
 
-q = [-0.6, deg2rad([90, 45,  115, -30, 0])];
+q = [-0.65, deg2rad([0, 20,  70, 0, 0])];
+[~, allT] = Dobot1.model.fkine(q);
 Dobot1.model.animate(q);
 Dobot1.model.teach()
 
@@ -41,54 +42,103 @@ catch
     disp("No colour in ply file")
 end
 
-% Ellipses for all robot links
-[~, linkTransforms] = Dobot1.model.fkine(q);
-%rotate(h, [0 0 1], 45);
-for linkIndex = 1:(Dobot1.model.n)
-    switch linkIndex
-        case 1
-            centrePoint = [linkTransforms(1,4,linkIndex), -0.06, (linkTransforms(3,4,linkIndex) - 0.04)];
-            radii = [0.13, 0.16, (linkTransforms(3,4,linkIndex) + 0.025)/2];  
-            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
-            linkEllipsoids(linkIndex) = surf(x,y,z);
-        case 2
-            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2 + 0.015];
-            radii = [0.1, 0.075, 0.1];
-            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
-            linkEllipsoids(linkIndex) = surf(x,y,z);
-            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
-        case 3
-            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
-            radii = [0.05, 0.05, 0.05];
-            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
-            linkEllipsoids(linkIndex) = surf(x,y,z);
-            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
-            rotate(linkEllipsoids(linkIndex), [1 0 0], rad2deg(-q(3)));
-        case 4
-            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
-            radii = [0.05, 0.05, 0.05];
-            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
-            linkEllipsoids(linkIndex) = surf(x,y,z);
-            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
-            rotate(linkEllipsoids(linkIndex), [1 0 0], rad2deg(q(3) + q(4)));
-        case 5
-            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
-            radii = [0.05, 0.05, 0.05];
-            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
-            linkEllipsoids(linkIndex) = surf(x,y,z);
-            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
-        case 6
-            centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
-            radii = [0.05, 0.05, 0.05];
-            [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
-            linkEllipsoids(linkIndex) = surf(x,y,z);
-            rotate(linkEllipsoids(linkIndex), [0 0 1], rad2deg(q(2)));
-        otherwise
-            disp("There is a problem. ")
-    end
-    
-    alpha(linkEllipsoids(linkIndex), 0.1);
-end
+check = Dobot1.CheckCollision(q, container)
+
+% function check = SphereCollisions(linkTransforms, objectTransform, vertices)
+% 
+%     check = 0;
+%     
+%     %rotate(h, [0 0 1], 45);Dobot1.model.n
+% 
+%     linkEllipsoid = [];
+%     radiuses = [];
+%     centres = [];
+% 
+%     for linkIndex = 1:size(linkTransforms, 3)
+%         switch linkIndex
+%             case 1
+%     %             centrePoint = [linkTransforms(1,4,linkIndex), -0.06, (linkTransforms(3,4,linkIndex) - 0.04)];
+%     %             radii = [0.13, 0.16, (linkTransforms(3,4,linkIndex) + 0.025)/2];  
+%     %             [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%     %             linkEllipsoids(linkIndex) = surf(x,y,z);
+%             case 2
+%     %             centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2 + 0.015];
+%     %             radii = [0.1, 0.075, 0.1];
+%     %             [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%     %             linkEllipsoids(linkIndex) = surf(x,y,z);
+%                 centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
+%                 radii = [0.075, 0.075, 0.075];
+%                 [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%                 linkEllipsoid(end+1) = surf(x,y,z);
+%                 radiuses(size(linkEllipsoid,2)) = radii(1);
+%                 centres(size(linkEllipsoid,2), 1:3) = centrePoint;
+%             case 3
+%                 centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
+%                 radii = [0.055, 0.055, 0.055];
+%                 [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%                 linkEllipsoid(end+1) = surf(x,y,z);
+%                 radiuses(size(linkEllipsoid,2)) = radii(1);
+%                 centres(size(linkEllipsoid,2), 1:3) = centrePoint;
+%                 centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+%                 [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%                 linkEllipsoid(end+1) = surf(x,y,z);
+%                 radiuses(size(linkEllipsoid,2)) = radii(1);
+%                 centres(size(linkEllipsoid,2), 1:3) = centrePoint;
+%             case 4
+%                 centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
+%                 radii = [0.04, 0.04, 0.04];
+%                 [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%                 linkEllipsoid(end+1) = surf(x,y,z);
+%                 radiuses(size(linkEllipsoid,2)) = radii(1);
+%                 centres(size(linkEllipsoid,2), 1:3) = centrePoint;
+%                 centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+%                 radii = [0.055, 0.055, 0.055];
+%                 [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%                 linkEllipsoid(end+1) = surf(x,y,z);
+%                 radiuses(size(linkEllipsoid,2)) = radii(1);
+%                 centres(size(linkEllipsoid,2), 1:3) = centrePoint;
+%             case 5
+%                 centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
+%                 radii = [0.03, 0.03, 0.03];
+%                 [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%                 linkEllipsoid(end+1) = surf(x,y,z);
+%                 radiuses(size(linkEllipsoid,2)) = radii(1);
+%                 centres(size(linkEllipsoid,2), 1:3) = centrePoint;
+%                 centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+%                 [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%                 linkEllipsoid(end+1) = surf(x,y,z);
+%                 radiuses(size(linkEllipsoid,2)) = radii(1);
+%                 centres(size(linkEllipsoid,2), 1:3) = centrePoint;
+%             case 6
+%     %             centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
+%                 radii = [0.02, 0.02, 0.02];
+%     %             [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%     %             linkEllipsoid6a = surf(x,y,z);
+%                 centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+%                 [x,y,z] = ellipsoid(centrePoint(1), centrePoint(2), centrePoint(3), radii(1), radii(2), radii(3));
+%                 linkEllipsoid(end+1) = surf(x,y,z);
+%                 radiuses(size(linkEllipsoid,2)) = radii(1);
+%                 centres(size(linkEllipsoid,2), 1:3) = centrePoint;
+%             otherwise
+%                 disp("There is a problem. ")
+%         end
+% 
+%         alpha(linkEllipsoid(:), 0.1);
+%     end
+% 
+%     for i = 1:size(linkEllipsoid, 2)
+%         points = vertices{1,1};
+%         for j = 1:size(points, 1)
+%             transforms(:,:,size(points, 1)) = objectTransform * transl(points(j,1), points(j,2), points(j,3));
+%             dist = sqrt((transforms(1,4,j) - centres(i,1))^2 + (transforms(2,4,j) - centres(i,2))^2 + (transforms(3,4,j) - centres(i,3))^2);
+%             if dist < radiuses(i)
+%                 check = 1;
+%                 return
+%             end
+%         end
+%     end
+%     
+% end
 
 % Rectangle prism point cloud for all objects to avoid
 
