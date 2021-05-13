@@ -3,6 +3,7 @@ classdef Kinect < handle
         tKinect     % global location of Kinect
         arPoseSub   % ROS subscriber to /tf topic     
         msgs        % Struct array of 
+        buffer
     end
     methods
         function self = Kinect()
@@ -11,9 +12,10 @@ classdef Kinect < handle
                                  0   -1.0000   -0.0000    0.2170;...
                                  0    0.0000   -1.0000    0.8828;...
                                  0         0         0    1.0000];
+            self.buffer = 20;
             
             %subscribe to ros topic
-            self.arPoseSub = rossubscriber("/tf",@self.ArCallback ,"BufferSize", 20);
+            self.arPoseSub = rossubscriber("/tf",@self.ArCallback ,"BufferSize", self.buffer);
         end
         
         function SetCalibrationTransform(self, inputTransform)
@@ -69,17 +71,12 @@ classdef Kinect < handle
         end
         
         function [tGlobe, tag] = StoreFood(self, storedTags)
-            errorFlag = 0;
             store = length(storedTags);
-            
-            num = 14;
-            msg = cell(num);
-            for i = 1:num
-                msg(i) = recieve(self.arPoseSub);
-            end
+            sample = self.msgs;
+            num = length(sample);
             
             for i = 1:num
-                ID = msg.Transforms.ChildFrameId;
+                ID = sample(i).msg.Transforms.ChildFrameId;
                 ID = split(ID,"_");
                 ID = ID(3);
                 ID = ID{1,1};
@@ -88,6 +85,8 @@ classdef Kinect < handle
                     if ID ~= storedTags(j)
                         index = i;
                         tag = ID;
+                        errorFlag = 0;
+                        break
                     else
                         errorFlag = 1;
                     end
@@ -95,14 +94,14 @@ classdef Kinect < handle
             end
             
             if errorFlag == 1
-                disp('ID already exists/not found')
+                disp('All ID already stored')
                 return
             end
            
-            translation = msg(index).Transforms.Transform.Translation;
+            translation = sample(index).msg.Transforms.Transform.Translation;
             translationT = transl(translation.X, translation.Y, translation.Z);
            
-            rotation = msg(index).Transforms.Transform.Rotation;
+            rotation = sample(index).msg.Transforms.Transform.Rotation;
             quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
             euler = quat2eul(quaternion);
             rotationT = rpy2tr(euler);
@@ -122,7 +121,7 @@ classdef Kinect < handle
 %         
         function ArCallback(self, ~, message)
             self.msgs(end+1).msg = message;
-            if length(self.msgs) > 20
+            if length(self.msgs) > self.buffer
                 self.msgs(1) = [];
             end
         end
