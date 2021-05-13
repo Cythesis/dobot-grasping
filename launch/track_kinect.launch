@@ -7,7 +7,7 @@
  <arg name="output_frame" default="/camera_link" />
  
 
- <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen">
+ <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkers" respawn="false" output="screen">
   <param name="marker_size"           type="double" value="$(arg marker_size)" />
   <param name="max_new_marker_error"  type="double" value="$(arg max_new_marker_error)" />
   <param name="max_track_error"       type="double" value="$(arg max_track_error)" />
