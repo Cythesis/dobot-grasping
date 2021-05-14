@@ -95,7 +95,7 @@ classdef Workspace < handle
        end
        %% Function to run when adding container; returns the new container's storage transform
        function [storageLocation, containerIndex] = AddContainer(self, containerLabel, containerType)
-           if (containerType == 1) || (containerType == 2)
+           if (containerType == 1) || (containerType == 4)
                 if (self.shelf2NumStored >= (self.maxNumContainers/2))
                    disp("Storage has reached capacity for this container type. ")
                    return
@@ -116,6 +116,7 @@ classdef Workspace < handle
                         , self.conveyorOffset(2), self.conveyorOffset(3) + self.conveyorHeight ...
                         + self.containerHeights(containerType));
             storageLocation = self.GetNewStorageLocation(containerIndex);
+            self.ConfirmContainerStored(containerIndex)
             if (self.simulationToggle == 0)
                 return
             end
@@ -138,7 +139,7 @@ classdef Workspace < handle
             catch
                 disp("No colour in ply file")
             end
-            self.ConfirmContainerStored(containerIndex)
+            
        end
        %% Function to calculate new storage position; only called by AddContainer() function
        function storageLocation = GetNewStorageLocation(self, storageIndex)

@@ -59,7 +59,7 @@ classdef Controller < handle
             currentJointAngles = self.JointCommand(currentJointAngles, self.workspace1.Dobot1.jointStateUp, self.dobotShortSteps);
             
             % Move to initial 'ready' linear rail position
-            linRailPos = -0.75;
+            linRailPos = -0.775;
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortSteps);
             
             % Move container along the conveyor
@@ -72,6 +72,7 @@ classdef Controller < handle
                         , self.workspace1.conveyorOffset(2) ...
                         , self.workspace1.conveyorOffset(3) + self.workspace1.conveyorHeight ...
                         + self.workspace1.containerHeights(containerType));
+                    trplot(containerConveyEnd)
                 self.workspace1.AnimateContainer(containerIndex, containerConveyStart, containerConveyEnd, self.conveyorSteps);
             end
             if (self.workspace1.realRobotToggle == 1)
@@ -83,8 +84,11 @@ classdef Controller < handle
             % Move end-effector just above the container
             if (self.workspace1.kinectToggle == 1)
                 storedTags = [self.workspace1.containerStorage(:).tag];
-                try [containerConveyEnd, newContainerTag] = self.kinect1.StoreFood(storedTags);
+                try [kinectTransformRead, newContainerTag] = self.kinect1.StoreFood(storedTags);
+                    containerConveyEnd = transl(0,0,0);
+                    containerConveyEnd(1:3,4) = kinectTransformRead(1:3,4);
                     self.workspace1.containerStorage(containerIndex).tag = newContainerTag;
+                    trplot(containerConveyEnd)
                 catch
                     disp("There was an error when finding the Kinect transform. ")
                 end
@@ -96,7 +100,7 @@ classdef Controller < handle
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortSteps);
            
             % Attach to container, use the end-effector spring force and suction cup vacuum
-            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0,0,(-self.springStroke - 0.015));
+            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0,0,(-self.springStroke - 0.00));
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             if (self.workspace1.realRobotToggle == 1)
@@ -109,7 +113,8 @@ classdef Controller < handle
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
 
             % Lift container off the conveyor belt a bit
-            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0.065, -0.045, 0.025);
+            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0.00, -0.045, 0.015);
+            trplot(targetTransform)
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortSteps);
          
@@ -200,7 +205,9 @@ classdef Controller < handle
                 currentJointAngles = [modelLinRailPos, modelJointAngles];
                 if (self.workspace1.kinectToggle == 1)
                     if (~isempty(self.workspace1.containerStorage(containerIndex).tag))
-                        try storageLocation = self.kinect1.GetTargetRaw(self.workspace1.containerStorage(containerIndex).tag);
+                        try kinectReading = self.kinect1.GetTargetRaw(self.workspace1.containerStorage(containerIndex).tag);
+                            storageLocation = transl(0,0,0);
+                            storageLocation(1:3,4) = kinectReading(1:3,4);
                         catch
                             disp("There was an error when retrieving the stored container transform from the kinect. ")
                         end
@@ -230,7 +237,15 @@ classdef Controller < handle
             targetTransform = storageLocation;
             targetTransform(3,4) = (storageLocation(3,4) + 0.00);
             targetTransform(2,4) = (storageLocation(2,4) - 0.01);
-            [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
+            try [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
+            catch
+                if (containerType == 2) || (containerType == 3)
+                    targetTransform(3,4) = (storageLocation(3,4) + 0.01);
+                    [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
+                else
+                    disp("Error with top shelf container range. ")
+                end
+            end
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortSteps);
             
             % Drop end effector down with spring and turn on suction

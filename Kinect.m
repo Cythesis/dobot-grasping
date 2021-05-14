@@ -9,9 +9,9 @@ classdef Kinect < handle
         function self = Kinect(kinectToggle)
             if (kinectToggle == 1)
                 %default kinect transform
-                self.tKinect = [1.0000         0         0   -0.2000;...
+                self.tKinect = [1.0000         0         0   -0.2300;...
                                      0   -1.0000   -0.0000    0.2170;...
-                                     0    0.0000   -1.0000    0.8828;...
+                                     0    0.0000   -1.0000    0.8950;...
                                      0         0         0    1.0000];
                 self.buffer = 20;
                 %subscribe to ros topic
@@ -57,7 +57,7 @@ classdef Kinect < handle
             rotation = sample(index).msg.Transforms.Transform.Rotation;
             quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
             euler = quat2eul(quaternion);
-            rotationT = rpy2tr(euler);
+            rotationT = rpy2tr(euler(3:-1:1));
             
             tRaw = translationT*rotationT;           
         end
@@ -88,6 +88,7 @@ classdef Kinect < handle
                         index = i;
                         tag = ID;
                         errorFlag = 0;
+%                         disp("New tag transform found. ")
                         break
                     else
                         errorFlag = 1;
@@ -106,7 +107,7 @@ classdef Kinect < handle
             rotation = sample(index).msg.Transforms.Transform.Rotation;
             quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
             euler = quat2eul(quaternion);
-            rotationT = rpy2tr(euler);
+            rotationT = rpy2tr(euler(3:-1:1));
             
             tRaw = translationT*rotationT; 
             
