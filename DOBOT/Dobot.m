@@ -91,7 +91,7 @@ classdef Dobot < handle
         % Set some default joint states for linear rail model
         jointStateDefault = [0, deg2rad([0, 5, 115, -30, 0])];
         jointStateDefault2 = deg2rad([0, 5, 115, -30, 0]);
-        jointStateUp = deg2rad([0, 5, 75, 10, 0]);
+        jointStateUp = deg2rad([0, 0, 76, 10, 0]);
         % Give a name for reference
         name = 'Dobot';
         % Set a workspace size
@@ -148,7 +148,7 @@ classdef Dobot < handle
             % FOR MODEL INCLUDING LINEAR RAIL
             links(1).qlim =         [   -1,     0     ];
             links(2).qlim = deg2rad([   -135,   135   ]);
-            links(3).qlim = deg2rad([   5,      80    ]);
+            links(3).qlim = deg2rad([   0,      80    ]);
             links(4).qlim = deg2rad([   15,     170   ]);
             links(5).qlim = deg2rad([   -90,    90    ]);
             links(6).qlim = deg2rad([   -85,    85    ]);
@@ -646,7 +646,10 @@ classdef Dobot < handle
             inLimits(6) = (currentJointAngles(6) >= self.model.qlim(6,1)) && (currentJointAngles(1) <= self.model.qlim(6,2));
         end
         %% Collision Detection function - check for a collision between dobot and an object
-        function checkCollision = CheckCollision(self, currentJointAngles, object)
+        function checkCollision = CheckCollision(self, currentJointAngles, object, display)
+            if nargin < 4
+                display = 0;
+            end
             [~, linkTransforms] = self.model.fkine(currentJointAngles);
             objectTransform = object.model.base;
             objectVertices = object.model.points;
@@ -697,14 +700,18 @@ classdef Dobot < handle
             transforms = zeros(4,4,size(points, 1));
             linkEllipsoids = [];
             for i = 1:size(linkTransforms, 3)
-%                 [x,y,z] = ellipsoid(centres(i,1), centres(i,2), centres(i,3), radiuses(i), radiuses(i), radiuses(i));
-%                 linkEllipsoids(i) = surf(x,y,z);
+                if (display == 1)
+                    [x,y,z] = ellipsoid(centres(i,1), centres(i,2), centres(i,3), radiuses(i), radiuses(i), radiuses(i));
+                    linkEllipsoids(i) = surf(x,y,z);
+                end
                 for j = 1:size(points, 1)
                     transforms(:,:,j) = objectTransform * transl(points(j,1), points(j,2), points(j,3));
                     dist = sqrt((transforms(1,4,j) - centres(i,1))^2 + (transforms(2,4,j) - centres(i,2))^2 + (transforms(3,4,j) - centres(i,3))^2);
                     if dist < radiuses(i)
                         checkCollision = 1;
-                        return
+                        if (display == 0)
+                            return
+                        end
                     end
                 end
 %                 plot3(transforms(1,4,j), transforms(2,4,j), transforms(3,4,j), 'r.')

@@ -5,8 +5,9 @@ classdef Controller < handle
         % Input objects
         workspace1; 
         ROSCom1;
+        kinect1;
         % Default control constants
-        springStroke = 0.0083;
+        springStroke = 0.008;
         conveyorSteps = 100;
         dobotShortSteps = 15;
         dobotShortestSteps = 5;
@@ -22,9 +23,10 @@ classdef Controller < handle
     methods
         
         %% CONSTRUCTOR FUNCTION
-        function self = Controller(workspaceInput, ROSCommunicator)
+        function self = Controller(workspaceInput, ROSCommunicator, kinectInput)
             self.workspace1 = workspaceInput;
             self.ROSCom1 = ROSCommunicator;
+            self.kinect1 = kinectInput;
         end
         
         %% CONTAINER STORAGE FUNCTION
@@ -79,8 +81,13 @@ classdef Controller < handle
             end
             
             % Move end-effector just above the container
-            if (self.workspace1.realRobotToggle == 1)
-                %> TODO: ASK ROSCOM WHAT THE TRANSFORM OF THE CONTAINER , overwrite containerConveyEnd
+            if (self.workspace1.kinectToggle == 1)
+                storedTags = [self.workspace1.containerStorage(:).tag];
+                try [containerConveyEnd, newContainerTag] = self.kinect1.StoreFood(storedTags);
+                    self.workspace1.containerStorage(containerIndex).tag = newContainerTag;
+                catch
+                    disp("There was an error when finding the Kinect transform. ")
+                end
             end
             [linRailPos, ~] = self.workspace1.Dobot1.GetLinRailPos(currentJointAngles, containerConveyEnd);
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
@@ -191,7 +198,14 @@ classdef Controller < handle
                 realLinRailPos = self.ROSCom1.GetRail();
                 [modelJointAngles, modelLinRailPos] = self.workspace1.Dobot1.GetModelJointAngles(realJointAngles, realLinRailPos);
                 currentJointAngles = [modelLinRailPos, modelJointAngles];
-                %> TODO: ROSCOM KINECT GET CONTAINER ARTAG POSE, write over storageLocation
+                if (self.workspace1.kinectToggle == 1)
+                    if (~isempty(self.workspace1.containerStorage(containerIndex).tag))
+                        try storageLocation = self.kinect1.GetTargetRaw(self.workspace1.containerStorage(containerIndex).tag);
+                        catch
+                            disp("There was an error when retrieving the stored container transform from the kinect. ")
+                        end
+                    end
+                end
             end
             
             % If shelf 1: move to default position, if shelf 2: move to 'up' position
@@ -407,10 +421,13 @@ classdef Controller < handle
         end
         
         %% Function for remote control input with DS4 controller
-        % Much of this code was derived from Robotics 41013 Lab 11.
-        function StartRemoteControl(self, cartesianToJointToggle)
+        % Some of this code was derived from Robotics 41013 Lab 11.
+        function StartRemoteControl(self, jointToggle, collisionsToggle)
             if (nargin < 1)
-                cartesianToJointToggle = 0;
+                self.cartesianToJointToggle = 0;
+                collisionsToggle = 0;
+            else
+                self.cartesianToJointToggle = jointToggle;
             end
             % Toggle the remote control check so that an indefinite loop
             % can be used for remote control
@@ -476,6 +493,8 @@ classdef Controller < handle
                         forearmVelocity = jointGain * axes(leftJoystickVertical);
                         reararmVelocity = jointGain * axes(rightJoystickVertical);
                     end
+                    % Store previous joint angles before updating
+                    prevJointAngles = currentJointAngles;
                     currentJointAngles(1) = currentJointAngles(1) + (linRailVelocity * dT);
                     currentJointAngles(2) = currentJointAngles(2) + (baseVelocity * dT);
                     currentJointAngles(3) = currentJointAngles(3) + (forearmVelocity * dT);
@@ -566,6 +585,16 @@ classdef Controller < handle
                         jointLimitIndex = find(~inLimits);
                         currentJointAngles(jointLimitIndex) = prevJointAngles(jointLimitIndex);
                         currentJointAngles(5) = pi/2 - currentJointAngles(4) - currentJointAngles(3);
+                    end
+                    % Collision detection feature
+                    if (collisionsToggle == 1)
+                        for i = 1:size(self.workspace1.containerStorage, 2)
+                            collisionCheck = self.workspace1.Dobot1.CheckCollision(currentJointAngles, self.workspace1.containerStorage(i), 0);
+                            if (collisionCheck == 1)
+                                self.workspace1.Dobot1.CheckCollision(currentJointAngles, self.workspace1.containerStorage(i), 1);
+                                return
+                            end
+                        end
                     end
                     % Pick up container with button press if nearby
                     endEffTr = self.workspace1.Dobot1.model.fkine(currentJointAngles);
@@ -701,6 +730,22 @@ classdef Controller < handle
                 [modelJointAngles, modelLinRailPos] = self.workspace1.Dobot1.GetModelJointAngles(actualRealJointAngles, actualLinRailPos);
                 newJointAngles = [modelLinRailPos, modelJointAngles];
             end
+        end
+        
+        %% Function for camera calibration
+        function CameraCalibrationRun(self)
+            if (self.workspace1.kinectToggle == 0)
+                disp("Calibration cannot be run in simulated system. ")
+                return
+            end
+            realJointAngles = self.ROSCom1.GetJoint();
+            realLinRailPos = self.ROSCom1.GetRail();
+            [modelJointAngles, modelLinRailPos] = self.workspace1.Dobot1.GetModelJointAngles(realJointAngles, realLinRailPos);
+            currentJointAngles = [modelLinRailPos, modelJointAngles];
+            endEffectorTr = self.workspace1.Dobot1.model.fkine(currentJointAngles);
+            calibrationTagTr = endEffectorTr;
+            calibrationTagTr(1,4) = endEffectorTr(1,4) - 0.045;
+            self.kinect1.FindCalibrationTransform(calibrationTagTr);
         end
     end
 end

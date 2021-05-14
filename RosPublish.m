@@ -25,8 +25,8 @@ classdef RosPublish < handle
     end
     methods(Access = public)
         
-        function self = RosPublish(simulationToggle)
-            if (simulationToggle == 1)
+        function self = RosPublish(realRobotToggle)
+            if (realRobotToggle == 1)
                 % Create ros subscribers
     %             self.arPoseSub = rossubscriber('/tf',@arPoseCallback);
                 self.jointStateSub = rossubscriber('/dobot_magician/joint_states');
@@ -53,14 +53,14 @@ classdef RosPublish < handle
            self.targetJointMsg.Points = Point;                          % Fill message in msg object
            send(self.targetJointPub,self.targetJointMsg);           % Send the message
            while 1
-               a = self.GetJoint()
-               b = self.targetJointMsg.Points.Positions
+               a = self.GetJoint();
+               b = self.targetJointMsg.Points.Positions;
                pause(0.01);
                if (abs(a(1)-b(1)) < 0.01) && (abs(a(2)-b(2)) < 0.04) && (abs(a(3)-b(3)) < 0.01) && (abs(a(4)-b(4)) < 0.08)
                    break
                end
            end
-           disp("All done")
+%            disp("All done")
         end
         
         
@@ -96,14 +96,14 @@ classdef RosPublish < handle
            self.railPosMsg.Data = pos;
            send(self.railPosPub,self.railPosMsg);
            while 1
-               a = self.GetRail()
-               b = self.railPosMsg.Data
+               a = self.GetRail();
+               b = self.railPosMsg.Data;
                pause(0.01);
                if abs(a-b) < 0.005
                    break
                end
            end
-           disp("All done")
+%            disp("All done")
        end
        
 %        function [ID, transform] = GetCurrentArPose(self)

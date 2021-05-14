@@ -11,6 +11,7 @@ classdef Workspace < handle
         initialJointAngles;
         simulationToggle = 1;
         realRobotToggle = 0;
+        kinectToggle = 0;
         % Physical dimensions which can be called upon:
         % Platform
         platformOffset = [0, 0, 0];
@@ -42,12 +43,12 @@ classdef Workspace < handle
 
     methods  
        %% Constructor function
-       function self = Workspace(realRobotToggleInput, simulationToggleInput, baseTransformInput, workspaceInput)
-            if (nargin < 4)
+       function self = Workspace(realRobotToggleInput, simulationToggleInput, kinectToggleInput, baseTransformInput, workspaceInput)
+            if (nargin < 5)
                 self.workspaceSize = self.defaultWorkspaceSize;
                 dobotBaseTransform = self.defaultDobotBaseTransform;
-            elseif (nargin < 2)
-                disp("You must input a toggle for whether you are using a real robot and another " ...
+            elseif (nargin < 3)
+                disp("You must input a toggle for whether you are using a real robot, kinect and another " ...
                         + " toggle to determine if you wish to run a simulation");
                     return
             else
@@ -62,6 +63,7 @@ classdef Workspace < handle
             
             self.simulationToggle = simulationToggleInput;
             self.realRobotToggle = realRobotToggleInput;
+            self.kinectToggle = kinectToggleInput;
            
             self.GetWorkspace(dobotBaseTransform);
             for i = 1:(self.maxNumContainers/2)
@@ -106,6 +108,7 @@ classdef Workspace < handle
             end
             containerIndex = (self.currentNumContainers + 1);
             containerLink = Link('alpha',0,'a',0.001,'d',0,'offset',0);
+            self.containerStorage(containerIndex).tag = [];
             self.containerStorage(containerIndex).type = containerType;
             self.containerStorage(containerIndex).label = containerLabel;
             self.containerStorage(containerIndex).model = SerialLink(containerLink, 'name', containerLabel);
@@ -119,7 +122,8 @@ classdef Workspace < handle
             [faceData, vertexData, plyData] = plyread(['Container',num2str(containerType),'.ply'],'tri');
             self.containerStorage(containerIndex).model.faces = {faceData, []};
             self.containerStorage(containerIndex).model.points = {vertexData, []};
-            plot3d(self.containerStorage(containerIndex).model, 0,'noarrow','workspace',self.workspaceSize,'delay',0);
+            [viewAz, viewEl] = view;
+            plot3d(self.containerStorage(containerIndex).model, 0,'noarrow','workspace',self.workspaceSize,'delay',0,'view', [viewAz, viewEl]);
             hold on
             if isempty(findobj(get(gca,'Children'),'Type','Light'))
                 camlight
