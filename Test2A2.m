@@ -2,16 +2,16 @@ close all; clear all; clc; clf;
 
 workspaceSize = [-1, 1, -1, 1, -0.012, 1];
 dobotBaseTransform = transl(0,0,0);
-simulationToggle = 0;
-realRobotToggle = 1;
-kinectToggle = 1;
+simulationToggle = 1;
+realRobotToggle = 0;
+kinectToggle = 0;
 
 workspace = Workspace(realRobotToggle, simulationToggle, kinectToggle, dobotBaseTransform, workspaceSize);
 kinect = Kinect(kinectToggle);
 ROSCom = RosPublish(realRobotToggle);
 controller = Controller(workspace, ROSCom, kinect);
 
-%% Store and retrieval tests
+%% Store and retrieval tests (uncomment to see some random storage and retrievals)
 
 viewSteps = 15;
 view(-30, 30)
@@ -138,6 +138,3 @@ end
 % 
 % controller.RetrieveContainer('Basil3')
 % controller.RetrieveContainer('Chilli2')
-
-%% Collision Testing
-

@@ -535,13 +535,13 @@ classdef Controller < handle
             % Set the new joint angles by the specified jog amount and
             % animate it / move real robot
             if (moveLinRail == 0)
-                jogAmount = deg2rad(jogAmount);
+                jogAmount = jogAmount;
                 targetJointAngles = currentJointAngles(2:end);
-                targetJointAngles(joint) = targetJointAngles(joint) + jogAmount;
+                targetJointAngles(joint) = jogAmount;
                 targetJointAngles(4) = pi/2 - targetJointAngles(3) - targetJointAngles(2);
                 currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             else
-                linRailPos = currentJointAngles(1) + jogAmount;
+                linRailPos = jogAmount;
                 currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
             end
         end
@@ -1205,6 +1205,7 @@ classdef Controller < handle
                     checkCollision = self.workspace1.Dobot1.CheckCollision(targetTrajectory(i,:), self.workspace1.containerStorage(containerIndex), 0);
                     if (checkCollision == 1)
                         robotMoving = 0;
+                        warning("Collision for trajectory detected. Changing path... ")
                         break
                     else
                         robotMoving = 1;

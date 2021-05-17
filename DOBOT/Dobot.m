@@ -673,7 +673,7 @@ classdef Dobot < handle
             objectVertices = object.model.points;
             % Initialise some parameters
             checkCollision = 0;
-            numSpheres = 8;
+            numSpheres = 9;
             radiuses = zeros(1,numSpheres);
             centres = zeros(numSpheres,3);
             % Iterate through all the linkages and plot spheres that
@@ -713,6 +713,10 @@ classdef Dobot < handle
                     case 6
                         radius = 0.02;
                         centrePoint = [(linkTransforms(1,4,linkIndex) + linkTransforms(1,4,linkIndex-1))/2, (linkTransforms(2,4,linkIndex) + linkTransforms(2,4,linkIndex-1))/2, (linkTransforms(3,4,linkIndex) + linkTransforms(3,4,linkIndex-1))/2];
+                        radiuses(8) = radius;
+                        centres(8, 1:3) = centrePoint;
+                        radius = 0.01;
+                        centrePoint = [linkTransforms(1,4,linkIndex), linkTransforms(2,4,linkIndex), linkTransforms(3,4,linkIndex)];
                         radiuses(8) = radius;
                         centres(8, 1:3) = centrePoint;
                 end
