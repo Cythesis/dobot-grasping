@@ -33,8 +33,12 @@ classdef Kinect < handle
         %Function that calculates the pose of the kinect using a global
         %pose of a marker and the kinect frame pose of the same marker.
         function FindCalibrationTransform(self, tGlobeMarker)
-            tCamMarker = self.GetTargetRaw(0);
-            self.tKinect = tGlobeMarker/tCamMarker;
+             tRaw = self.GetTargetRaw(0);
+             tCamMarker = transl(tRaw(1,4),tRaw(2,4),tRaw(3,4));
+             tNew = tGlobeMarker/tCamMarker;
+             self.tKinect(1,4) = tNew(1,4);
+             self.tKinect(2,4) = tNew(2,4);
+             self.tKinect(3,4) = tNew(3,4);
         end
         
         %Returns the camera frame pose of a selected marker
