@@ -14,11 +14,11 @@ classdef Kinect < handle
                 %default kinect transform
                 self.tKinect = [1.0000         0         0   -0.2300;...
                                      0   -1.0000   -0.0000    0.2170;...
-                                     0    0.0000   -1.0000    0.8950;...
+                                     0    0.0000   -1.0000    0.9000;...
                                      0         0         0    1.0000];
                 
                 %Set buffer size for callback
-                self.buffer = 100;
+                self.buffer = 20;
                 
                 %subscribe to ros topic
                 self.arPoseSub = rossubscriber("/tf",@self.ArCallback ,"BufferSize", self.buffer);
@@ -33,8 +33,12 @@ classdef Kinect < handle
         %Function that calculates the pose of the kinect using a global
         %pose of a marker and the kinect frame pose of the same marker.
         function FindCalibrationTransform(self, tGlobeMarker)
-            tCamMarker = self.GetTargetRaw(0);
-            self.tKinect = tGlobeMarker/tCamMarker;
+             tRaw = self.GetTargetRaw(0);
+             tCamMarker = transl(tRaw(1,4),tRaw(2,4),-tRaw(3,4));
+             tNew = tGlobeMarker*inv(tCamMarker);
+             self.tKinect(1,4) = tNew(1,4);
+             self.tKinect(2,4) = tNew(2,4);
+             self.tKinect(3,4) = tNew(3,4);
         end
         
         %Returns the camera frame pose of a selected marker
@@ -55,16 +59,18 @@ classdef Kinect < handle
                 ID = ID{1,1};
                 ID = str2double(ID);
                 if ID == selectedTag
-                    ave = ave + 1;
-                    translation = sample(i).msg.Transforms.Transform.Translation;
-                    translationSum = translationSum + transl(translation.X, translation.Y, translation.Z);
-
-                    rotation = sample(i).msg.Transforms.Transform.Rotation;
-                    quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
-                    euler = quat2eul(quaternion);
-                    rotationSum = rotationSum + rpy2tr(euler(3:-1:1));
+%                     ave = ave + 1;
+                    index = i;
+%                     translation = sample(i).msg.Transforms.Transform.Translation;
+%                     translationSum = translationSum + transl(translation.X, translation.Y, translation.Z);
+% 
+%                     rotation = sample(i).msg.Transforms.Transform.Rotation;
+%                     quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
+%                     euler = quat2eul(quaternion);
+%                     rotationSum = rotationSum + rpy2tr(euler(3:-1:1));
                     
                     errorFlag = 0;
+                    
                 end
             end
             
@@ -74,10 +80,22 @@ classdef Kinect < handle
                 return
             end
             
-            translationAve = translationSum/ave;
-            rotationAve = rotationSum/ave;
+%             translationAve = translationSum/ave;
+%             rotationAve = rotationSum/ave;
+%             
+%             tRaw = translationAve*rotationAve;
+
+            %no average
+            translation = sample(index).msg.Transforms.Transform.Translation;
+            translationT = transl(translation.X, translation.Y, translation.Z);
+
+            rotation = sample(index).msg.Transforms.Transform.Rotation;
+            quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
+            euler = quat2eul(quaternion);
+            rotationT = rpy2tr(euler(3:-1:1));
             
-            tRaw = translationAve*rotationAve;           
+            tRaw = translationT*rotationT;
+            %no average
         end
         
         %Function used to collect items from the pantry to user.
@@ -116,15 +134,15 @@ classdef Kinect < handle
                 ID = str2double(ID);
                 for j = 1:store
                     if ID ~= storedTags(j)
-                        ave = ave + 1;
-                        translation = sample(i).msg.Transforms.Transform.Translation;
-                        translationSum = translationSum + transl(translation.X, translation.Y, translation.Z);
-
-                        rotation = sample(i).msg.Transforms.Transform.Rotation;
-                        quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
-                        euler = quat2eul(quaternion);
-                        rotationSum = rotationSum + rpy2tr(euler(3:-1:1));
-                        
+%                         ave = ave + 1;
+%                         translation = sample(i).msg.Transforms.Transform.Translation;
+%                         translationSum = translationSum + transl(translation.X, translation.Y, translation.Z);
+% 
+%                         rotation = sample(i).msg.Transforms.Transform.Rotation;
+%                         quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
+%                         euler = quat2eul(quaternion);
+%                         rotationSum = rotationSum + rpy2tr(euler(3:-1:1));
+                        index = i;  %no aaverage
                         tag = ID;
                         errorFlag = 0;
                     end
@@ -138,12 +156,26 @@ classdef Kinect < handle
                 return
             end
             
-            translationAve = translationSum/ave;
-            rotationAve = rotationSum/ave;
+%             translationAve = translationSum/ave;
+%             rotationAve = rotationSum/ave;
+%             
+%             tRaw = translationAve*rotationAve; 
             
-            tRaw = translationAve*rotationAve; 
+            %no average
+            translation = sample(index).msg.Transforms.Transform.Translation;
+            translationT = transl(translation.X, translation.Y, translation.Z);
+
+            rotation = sample(index).msg.Transforms.Transform.Rotation;
+            quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
+            euler = quat2eul(quaternion);
+            rotationT = rpy2tr(euler(3:-1:1));
+            
+            tRaw = translationT*rotationT;
+            %no average
             
             tGlobe = self.tKinect * tRaw;
+            
+            self.msgs = [];
             
         end
         
