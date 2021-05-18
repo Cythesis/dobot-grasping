@@ -1,4 +1,4 @@
-%%              Dobot With Linear Rail Class - Chef's Third Arm
+%%              Dobot With Linear Rail Class
 % This class creates a serial link object to simulate a Dobot Magician, 
 % attached to a linear rail. 
 % The following describes links 0 - 6:
@@ -73,15 +73,6 @@
 % inLimits = CheckJointLimits(currentJointAngles)
 %           - Must input a 1x6 joint angle matrix, returns a 1x6 logical
 %           array of respective joint angle limit status
-%
-% Function to check for collisions for a given Dobot joint configuration with a given object
-% checkCollision = CheckCollision(currentJointAngles, object, display)
-%           - Inputs: the joint configuration of the Dobot to check, the
-%           SerialLink model of the object, and a toggle for whether to
-%           display the collision bounds on the simulation (ellipses)
-%           - Output: a flag that shows if a collision occurred - ie. 
-%           0: collision did not occur, 1: collision occurred.
-%
 
 classdef Dobot < handle
     
@@ -445,45 +436,39 @@ classdef Dobot < handle
         %% Function to generate a joint angle path matrix from two known 
         % initial and final joint angle matrices (for simulation model, so use 1x6 matrix)
         function jointPath = GetJointPathQQ(self, currentJointAngles, finalJointAngles, steps)
-            % Make argument for number of steps optional; set to default
             if nargin ~= 4
                 steps = self.defaultSteps;
             end
-            % Ensure that the input joint angles are the correct format 1x6
             if (size(currentJointAngles, 2) ~= self.model.n)
                 disp("Input joint matrix must be for 6-joint link simulation. ")
                 return
             end
-            % Generate a joint path using jtraj and ensure that the linear
-            % rail will not surpass its limits (avoid pjoint error)
             jointPath = jtraj(currentJointAngles, finalJointAngles, steps);
             jointPath((jointPath(:, 1) > self.model.qlim(1,2)), 1) = 0;
             jointPath((jointPath(:, 1) < self.model.qlim(1,1)), 1) = self.model.qlim(1,1);
         end
         %% Function to convert model joint space to real robot joint space
         function [realJointAngles, realLinRailPos] = GetRealJointAngles(self, modelJointAngles, modelLinRailPos)
-            % Ensure that input joint angles are correct format 1x5
             if (size(modelJointAngles, 2) > 5)
                 disp("Must use 5-link joint matrix as input. ")
                 return
             end
-            % Initialise output argument
             realJointAngles = zeros(1, (size(modelJointAngles, 2) - 1)); % Joint 5 will be ommitted
             realLinRailPos = modelLinRailPos * -1; % Reverse direction of linear rail (robot toolbox only likes negative prismatic values)
-            realJointAngles(1, 1) = modelJointAngles(1);    % Base joint angle does not require adjustment
-            realJointAngles(1, 2) = modelJointAngles(2);    % Forearm joint angle does not require adjustment
+            realJointAngles(1, 1) = modelJointAngles(1);
+            realJointAngles(1, 2) = modelJointAngles(2);    % Angle does not require adjustment
             realJointAngles(1, 3) = modelJointAngles(3) + modelJointAngles(2) - (pi/2); % adjust, accounting for mechanical linkage
             realJointAngles(1, 4) = modelJointAngles(5);    % Servo angle is the same (joint 5 ommitted) 
         end
         %% Function to convert real joints back into the model joint space
         function [modelJointAngles, modelLinRailPos] = GetModelJointAngles(self, realJointAngles, realLinRailPos)
-            modelLinRailPos = (-1 * realLinRailPos);        % Reverse linear rail to negative (for prismatic)
-            modelJointAngles = zeros(1, self.model2.n);     % Initialise output argument
-            modelJointAngles(1, 1) = realJointAngles(1);    % Base joint angle does not require adjustment 
-            modelJointAngles(1, 2) = realJointAngles(2);    % Forearm joint angle does not require adjustment
-            modelJointAngles(1, 3) = realJointAngles(3) - realJointAngles(2) + pi/2;            % adjust, accounting for mechanical linkage
-            modelJointAngles(1, 4) = pi/2 - modelJointAngles(1, 3) - modelJointAngles(1, 2);    % set according to mechanical linkage
-            modelJointAngles(1, 5) = realJointAngles(4);    % Servo angle is the same (from joint 4)
+            modelLinRailPos = (-1 * realLinRailPos);
+            modelJointAngles = zeros(1, self.model2.n);
+            modelJointAngles(1, 1) = realJointAngles(1);
+            modelJointAngles(1, 2) = realJointAngles(2);
+            modelJointAngles(1, 3) = realJointAngles(3) - realJointAngles(2) + pi/2;
+            modelJointAngles(1, 4) = pi/2 - modelJointAngles(1, 3) - modelJointAngles(1, 2);
+            modelJointAngles(1, 5) = realJointAngles(4);
         end
         %% Function to produce a default guess pose for a given transform
         function [modelGuessPose, inBoundaryCheck] = GetGuessPose(self, currentJointAngles, inputTransform)
@@ -662,22 +647,16 @@ classdef Dobot < handle
         end
         %% Collision Detection function - check for a collision between dobot and an object
         function checkCollision = CheckCollision(self, currentJointAngles, object, display)
-            % Make display toggle an optional argument which defaults to zero (off)
             if nargin < 4
                 display = 0;
             end
-            % Get the transforms of all the Dobot linkages
             [~, linkTransforms] = self.model.fkine(currentJointAngles);
-            % Store input object's base transform and ply point cloud
             objectTransform = object.model.base;
             objectVertices = object.model.points;
-            % Initialise some parameters
             checkCollision = 0;
             numSpheres = 8;
             radiuses = zeros(1,numSpheres);
             centres = zeros(numSpheres,3);
-            % Iterate through all the linkages and plot spheres that
-            % encapsulate the physical space of each
             for linkIndex = 1:size(linkTransforms, 3)
                 switch linkIndex
                     case 2
@@ -717,21 +696,15 @@ classdef Dobot < handle
                         centres(8, 1:3) = centrePoint;
                 end
             end
-            % Initialise some more variables for collision checking
             points = objectVertices{1,1};
             transforms = zeros(4,4,size(points, 1));
             linkEllipsoids = [];
-            % Iterate through all of the created spheres and check if any of
-            % the points from the object fall within their radius
-            for i = 1:size(radiuses, 2)
-                % Display the spheres if display toggle is on
+            for i = 1:size(linkTransforms, 3)
                 if (display == 1)
                     [x,y,z] = ellipsoid(centres(i,1), centres(i,2), centres(i,3), radiuses(i), radiuses(i), radiuses(i));
                     linkEllipsoids(i) = surf(x,y,z);
                 end
-                % Iterate through all of the object surface points
                 for j = 1:size(points, 1)
-                    % check the 3D distance to the centre of the iterated sphere
                     transforms(:,:,j) = objectTransform * transl(points(j,1), points(j,2), points(j,3));
                     dist = sqrt((transforms(1,4,j) - centres(i,1))^2 + (transforms(2,4,j) - centres(i,2))^2 + (transforms(3,4,j) - centres(i,3))^2);
                     if dist < radiuses(i)

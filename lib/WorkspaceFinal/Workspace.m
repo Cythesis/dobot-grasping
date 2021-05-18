@@ -1,36 +1,4 @@
-%%              Environment Simulation Class - Chef's Third Arm
-%
-% This class handles all of the environmental features for simulation and
-% running the 'Chef's Third Arm' automated pantry.
-%
-% CALLABLE CLASS FUNCTIONS: 
-%
-% Constructor function:
-% self = Workspace(realRobotToggleInput, simulationToggleInput, kinectToggleInput, baseTransformInput, workspaceInput)
-%           - Input a toggle for running the real robot, running the
-%           simulation and using the real kinect. Toggles are 0 (off) or 1
-%           (on). Optional arguments: baseTransformInput (transform of the
-%           Dobot, typically transl(0,0,0), must be 4x4 homog. matrix.
-%           workspaceInput: size for the workspace - matrix of [x, -x, y,
-%           -y, z, -z]. 
-%
-% Function to animate a motion of a container only
-% AnimateContainer(containerIndex, startTransform, endTransform, steps)
-%           - Inputs: index of the container to be animated, start
-%           transform (4x4 homog.), end transform (4x4 homog.), number of
-%           steps for the animation
-%
-% Function to animate the motion of the Dobot only
-% AnimateDobot(currentJointAngles, finalJointAngles, steps)
-%           - Inputs: 1x6 joint matrix of starting position, 1x6 joint
-%           matrix of final position, number of steps for the animation
-%
-% Function to simultaneously animate the motion of the Dobot and a given container
-% AnimateSimulatenously(containerIndex, currentJointAngles, finalJointAngles, steps)
-%           - Inputs: index of the container to be animated, 1x6 joint 
-%           matrix of starting position, 1x6 joint matrix of final 
-%           position, number of steps for the animation
-%
+%% Construct a simulated workspace to model the existing Dobot workspace
 
 classdef Workspace < handle
     
@@ -76,31 +44,28 @@ classdef Workspace < handle
     methods  
        %% Constructor function
        function self = Workspace(realRobotToggleInput, simulationToggleInput, kinectToggleInput, baseTransformInput, workspaceInput)
-            % Make last two arguments as default, but three toggles must be specified
             if (nargin < 5)
                 self.workspaceSize = self.defaultWorkspaceSize;
                 dobotBaseTransform = self.defaultDobotBaseTransform;
             elseif (nargin < 3)
                 disp("You must input a toggle for whether you are using a real robot, kinect and another " ...
                         + " toggle to determine if you wish to run a simulation");
-                return
+                    return
             else
                 self.workspaceSize = workspaceInput;
                 dobotBaseTransform = baseTransformInput;
             end
-            % Ensure that at least either the real robot is being used or the
-            % simulation is being used
+            
             if (realRobotToggleInput == 0) && (simulationToggleInput == 0)
                 disp("Either a simulation must be run or the real robot must be used." )
                 return
             end
-            % Set toggles to class properties
+            
             self.simulationToggle = simulationToggleInput;
             self.realRobotToggle = realRobotToggleInput;
             self.kinectToggle = kinectToggleInput;
-            % Run get workspace function to create simulated environment
+           
             self.GetWorkspace(dobotBaseTransform);
-            % Set up shelf locations
             for i = 1:(self.maxNumContainers/2)
                self.shelfLocations(i).shelf1 = [(-self.shelfXOffset - (self.maxContainerDia/2) - ((i-1) * self.maxContainerDia)) ...
                                                     , self.shelf1YOffset + (self.maxContainerDia/2), self.shelf1Height];
@@ -111,28 +76,26 @@ classdef Workspace < handle
        
        %% Workspace plotting function
        function GetWorkspace(self, dobotBaseTransform)
-           % Determine environment dimensions
+           
            axis(self.workspaceSize, 'normal');
-           % Place static ply objects
+           
            hold on
            PlaceObject('Frame.ply', self.frameOffset);
            PlaceObject('Platform.ply', self.platformOffset);
            PlaceObject('ConveyorBelt.ply', self.conveyorOffset);
            PlaceObject('Kinect.ply', self.kinectOffset);
-           % Set up Dobot object from Dobot.m class
+           
            self.Dobot1 = Dobot(dobotBaseTransform, self.workspaceSize);
            self.initialJointAngles = self.Dobot1.model.getpos;
            self.initialJointAngles(1) = -0.5;
            self.Dobot1.model.animate(self.initialJointAngles);
-           % Set up environment perspective
+           
            camlight(1, 30);
            view(45, 30);
        end
        %% Function to run when adding container; returns the new container's storage transform
        function [storageLocation, containerIndex] = AddContainer(self, containerLabel, containerType)
-            % Check that there is space for new container for its respective
-            % shelf, depending on container type
-            if (containerType == 1) || (containerType == 4)
+           if (containerType == 1) || (containerType == 4)
                 if (self.shelf2NumStored >= (self.maxNumContainers/2))
                    disp("Storage has reached capacity for this container type. ")
                    return
@@ -143,29 +106,20 @@ classdef Workspace < handle
                    return
                 end
             end
-            % Set container index based on the current number of containers
             containerIndex = (self.currentNumContainers + 1);
-            % Set up new container as a single link for SerialLink object
             containerLink = Link('alpha',0,'a',0.001,'d',0,'offset',0);
-            % Create empty tag field to be filled by kinect later
             self.containerStorage(containerIndex).tag = [];
-            % Set container type field and lable field, and assign the
-            % SerialLink; set initial base transform
             self.containerStorage(containerIndex).type = containerType;
             self.containerStorage(containerIndex).label = containerLabel;
             self.containerStorage(containerIndex).model = SerialLink(containerLink, 'name', containerLabel);
             self.containerStorage(containerIndex).model.base = transl(self.conveyorOffset(1) + 0.3 ...
                         , self.conveyorOffset(2), self.conveyorOffset(3) + self.conveyorHeight ...
                         + self.containerHeights(containerType));
-            % Obtain storage location for the given container index
             storageLocation = self.GetNewStorageLocation(containerIndex);
-            % Run confirmation function to increment shelf storage values
             self.ConfirmContainerStored(containerIndex)
-            % End the function if simulation is not toggled on
             if (self.simulationToggle == 0)
                 return
             end
-            % Set up ply data for the new container
             [faceData, vertexData, plyData] = plyread(['Container',num2str(containerType),'.ply'],'tri');
             self.containerStorage(containerIndex).model.faces = {faceData, []};
             self.containerStorage(containerIndex).model.points = {vertexData, []};
@@ -189,10 +143,7 @@ classdef Workspace < handle
        end
        %% Function to calculate new storage position; only called by AddContainer() function
        function storageLocation = GetNewStorageLocation(self, storageIndex)
-           % Check the container type, and find a new location on the
-           % respective shelf which is empty, and set it to filled. Store
-           % the new position index.
-           containerType = self.containerStorage(storageIndex).type;
+            containerType = self.containerStorage(storageIndex).type;
             if (containerType == 1) || (containerType == 4) % Use shelf 2
                 shelfIndex = 0;
                 for i = 1:(self.maxNumContainers/2)
@@ -202,12 +153,10 @@ classdef Workspace < handle
                         break
                     end
                 end
-                % Handle case where the shelf is already full
                 if shelfIndex == 0
                     disp("Error: shelf was full when finding shelf location." )
                     return
                 end
-                % Store shelf position x,y,z location
                 storeHeight = self.shelfLocations(shelfIndex).shelf2(3) + self.containerHeights(containerType);
                 storeYOffset = self.shelfLocations(shelfIndex).shelf2(2);
                 storeXOffset = self.shelfLocations(shelfIndex).shelf2(1);
@@ -220,28 +169,21 @@ classdef Workspace < handle
                         break
                     end
                 end
-                % Handle case where the shelf is already full
                 if shelfIndex == 0
                     disp("Error: shelf was full when finding shelf location." )
                     return
                 end
-                % Store shelf position x,y,z location
                 storeHeight = self.shelfLocations(shelfIndex).shelf1(3) + self.containerHeights(containerType);
                 storeYOffset = self.shelfLocations(shelfIndex).shelf1(2);
                 storeXOffset = self.shelfLocations(shelfIndex).shelf1(1);
             end
-            % Return the new shelf position as 4x4 homog. transform
             self.containerStorage(storageIndex).shelfIndex = shelfIndex;
             storageLocation = transl(storeXOffset, storeYOffset, storeHeight);
        end
        %% Function to update container storage variables, only called by AddContainer() function
        function ConfirmContainerStored(self, storageIndex)
-            % Check container type
             containerType = self.containerStorage(storageIndex).type;
-            % Increment total number of containers stored
             self.currentNumContainers = self.currentNumContainers + 1;
-            % Increment number of containers on each shelf depending on
-            % container type
             if (containerType == 1) || (containerType == 4) % Use shelf 2
                 self.shelf2NumStored = (self.shelf2NumStored + 1);
             else % Use shelf 1
@@ -250,10 +192,7 @@ classdef Workspace < handle
        end
        %% Function for container-only animation
        function AnimateContainer(self, containerIndex, startTransform, endTransform, steps)
-            % Generate a path along X, because this is only used for 
-            % animating along the conveyor belt
             xPath = linspace(startTransform(1,4), endTransform(1,4), steps);
-            % Animate selected container along each step of the path
             for i = 1:steps
                 self.containerStorage(containerIndex).model.base = startTransform;
                 self.containerStorage(containerIndex).model.base(1,4) = xPath(i);
@@ -264,9 +203,7 @@ classdef Workspace < handle
        end
        %% Function for Dobot-only animation
        function AnimateDobot(self, currentJointAngles, finalJointAngles, steps)
-            % Get a joint path from inital and final joint matrices
             jointPath = self.Dobot1.GetJointPathQQ(currentJointAngles, finalJointAngles, steps);
-            % Animate each step
             for i = 1:steps
                 self.Dobot1.model.animate(jointPath(i, :))
                 drawnow();
@@ -275,10 +212,7 @@ classdef Workspace < handle
        end
        %% Function for Container-Dobot simultaneous animation
        function AnimateSimulatenously(self, containerIndex, currentJointAngles, finalJointAngles, steps)
-            % Get a joint path from inital and final joint matrices 
             jointPath = self.Dobot1.GetJointPathQQ(currentJointAngles, finalJointAngles, steps);
-            % Animate each step and update given container base transform
-            % to animate it simultaneously
             for i = 1:steps
                 self.Dobot1.model.animate(jointPath(i, :))
                 self.containerStorage(containerIndex).model.base = self.Dobot1.model.fkine(jointPath(i, :));
