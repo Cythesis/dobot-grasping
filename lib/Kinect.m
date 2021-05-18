@@ -44,12 +44,14 @@ classdef Kinect < handle
         %Returns the camera frame pose of a selected marker
         function tRaw = GetTargetRaw(self, selectedTag)
             errorFlag = 1;
-            ave = 0;
             sample = self.msgs;
             num = length(sample);
             
-            translationSum = zeros(4,4);
-            rotationSum = zeros(4,4);
+            % -- Averaging -- %
+%             ave = 0;
+%             translationSum = zeros(4,4);
+%             rotationSum = zeros(4,4);
+            % -- Averaging -- %
             
             disp("Searching for tag... ")
             for i = 1:num
@@ -59,8 +61,8 @@ classdef Kinect < handle
                 ID = ID{1,1};
                 ID = str2double(ID);
                 if ID == selectedTag
+                    % -- Averaging -- %
 %                     ave = ave + 1;
-                    index = i;
 %                     translation = sample(i).msg.Transforms.Transform.Translation;
 %                     translationSum = translationSum + transl(translation.X, translation.Y, translation.Z);
 % 
@@ -68,9 +70,13 @@ classdef Kinect < handle
 %                     quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
 %                     euler = quat2eul(quaternion);
 %                     rotationSum = rotationSum + rpy2tr(euler(3:-1:1));
+                    % -- Averaging -- %
+                    
+                    % -- No Averaging -- %
+                    index = i;
+                    % -- No Averaging -- %
                     
                     errorFlag = 0;
-                    
                 end
             end
             
@@ -80,12 +86,14 @@ classdef Kinect < handle
                 return
             end
             
+            % -- Averaging -- %
 %             translationAve = translationSum/ave;
 %             rotationAve = rotationSum/ave;
 %             
 %             tRaw = translationAve*rotationAve;
+            % -- Averaging -- %
 
-            %no average
+            % -- No Averaging -- %
             translation = sample(index).msg.Transforms.Transform.Translation;
             translationT = transl(translation.X, translation.Y, translation.Z);
 
@@ -95,7 +103,7 @@ classdef Kinect < handle
             rotationT = rpy2tr(euler(3:-1:1));
             
             tRaw = translationT*rotationT;
-            %no average
+            % -- No Averaging -- %
         end
         
         %Function used to collect items from the pantry to user.
@@ -121,10 +129,12 @@ classdef Kinect < handle
             errorFlag = 1;
             sample = self.msgs;
             num = length(sample);
-            ave = 0;
             
-            translationSum = zeros(4,4);
-            rotationSum = zeros(4,4);
+            % -- Averaging -- %
+%             ave = 0;
+%             translationSum = zeros(4,4);
+%             rotationSum = zeros(4,4);
+            % -- Averaging -- %
             
             for i = 1:num
                 ID = sample(i).msg.Transforms.ChildFrameId;
@@ -134,6 +144,7 @@ classdef Kinect < handle
                 ID = str2double(ID);
                 for j = 1:store
                     if ID ~= storedTags(j)
+                        % -- Averaging -- %
 %                         ave = ave + 1;
 %                         translation = sample(i).msg.Transforms.Transform.Translation;
 %                         translationSum = translationSum + transl(translation.X, translation.Y, translation.Z);
@@ -142,7 +153,10 @@ classdef Kinect < handle
 %                         quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
 %                         euler = quat2eul(quaternion);
 %                         rotationSum = rotationSum + rpy2tr(euler(3:-1:1));
-                        index = i;  %no aaverage
+                        % -- Averaging -- %
+                        % -- No Averaging -- %
+                        index = i;
+                        % -- No Averaging -- %
                         tag = ID;
                         errorFlag = 0;
                     end
@@ -155,13 +169,14 @@ classdef Kinect < handle
                 tGlobe = 0;
                 return
             end
-            
+            % -- Averaging -- %
 %             translationAve = translationSum/ave;
 %             rotationAve = rotationSum/ave;
 %             
 %             tRaw = translationAve*rotationAve; 
+            % -- Averaging -- %
             
-            %no average
+            % -- No Averaging -- %
             translation = sample(index).msg.Transforms.Transform.Translation;
             translationT = transl(translation.X, translation.Y, translation.Z);
 
@@ -171,7 +186,7 @@ classdef Kinect < handle
             rotationT = rpy2tr(euler(3:-1:1));
             
             tRaw = translationT*rotationT;
-            %no average
+            % -- No Averaging -- %
             
             tGlobe = self.tKinect * tRaw;
             
