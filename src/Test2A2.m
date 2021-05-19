@@ -11,7 +11,7 @@ kinect = Kinect(kinectToggle);
 ROSCom = RosPublish(realRobotToggle);
 controller = Controller(workspace, ROSCom, kinect);
 
-%% Store and retrieval tests
+%% Store and retrieval tests (uncomment to see some random storage and retrievals)
 
 viewSteps = 15;
 view(-30, 30)
@@ -27,6 +27,24 @@ for i = 1:viewSteps
     pause(0.05)
 end
 [az, el] = view;
+
+%% Calibration Demo
+
+% q = controller.workspace1.Dobot1.jointStateDefault;
+% realQ = controller.workspace1.Dobot1.GetRealJointAngles(q(2:end), 0);
+% controller.ROSCom1.MoveJoint(realQ);
+% 
+% controller.ROSCom1.MoveRail(0.55);
+
+%% Continue Demo
+
+% controller.ROSCom1.MoveTool(1)
+
+%% Continue Demo
+
+% controller.CameraCalibrationRun();
+
+%%
 
 % initangle = rad2deg(tr2rpy(controller.kinect1.GetTargetRaw(0)));
 % while(1)
@@ -138,6 +156,3 @@ end
 % 
 % controller.RetrieveContainer('Basil3')
 % controller.RetrieveContainer('Chilli2')
-
-%% Collision Testing
-

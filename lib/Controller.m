@@ -185,12 +185,12 @@ classdef Controller < handle
             end
             [linRailPos, ~] = self.workspace1.Dobot1.GetLinRailPos(currentJointAngles, containerConveyEnd);
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
-            containerConveyEnd(3,4) = (containerConveyEnd(3,4) + 0.015);
+            containerConveyEnd(3,4) = (containerConveyEnd(3,4) + 0.005);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, containerConveyEnd);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortSteps);
            
             % Attach to container, use the end-effector spring force and suction cup vacuum
-            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0,0,(-self.springStroke - 0.00));
+            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0,0,(-self.springStroke + 0.005));
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             if (self.workspace1.realRobotToggle == 1)
@@ -203,7 +203,7 @@ classdef Controller < handle
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
 
             % Lift container off the conveyor belt a bit
-            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0.00, -0.045, 0.015);
+            targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles) * transl(0.00, -0.045, 0.025);
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommandSimultaneous(containerIndex, currentJointAngles, targetJointAngles, self.dobotShortSteps);
          
@@ -293,7 +293,7 @@ classdef Controller < handle
             end
             
             % Move the Dobot so it doesn't block any tags
-            self.ROSCom1.MoveRail(0.5);
+            self.ROSCom1.MoveRail(0.75);
             
             % Get the initial pose, container type and get the target location of the desired container
             containerType = self.workspace1.containerStorage(containerIndex).type;
@@ -339,13 +339,19 @@ classdef Controller < handle
             [linRailPos, ~] = self.workspace1.Dobot1.GetLinRailPos(currentJointAngles, storageLocation);
             currentJointAngles = self.LinearRailCommand(currentJointAngles, linRailPos, self.dobotShortestSteps);
             targetTransform = storageLocation;
-            targetTransform(3,4) = (storageLocation(3,4) + 0.00);
-            targetTransform(2,4) = (storageLocation(2,4) - 0.00);
-            targetTransform(1,4) = (storageLocation(1,4) + 0.01);
+            if (containerType == 2) || (containerType == 3)
+                targetTransform(3,4) = (storageLocation(3,4) + 0.005);
+                targetTransform(2,4) = (storageLocation(2,4) + 0.005);
+                targetTransform(1,4) = (storageLocation(1,4) + 0.015);
+            else
+                targetTransform(3,4) = (storageLocation(3,4) + 0.000);
+                targetTransform(2,4) = (storageLocation(2,4) + 0.005);
+                targetTransform(1,4) = (storageLocation(1,4) + 0.025);
+            end
             try [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             catch
                 if (containerType == 2) || (containerType == 3)
-                    targetTransform(3,4) = (storageLocation(3,4) + 0.01);
+                    targetTransform(3,4) = (storageLocation(3,4) + 0.025);
                     try [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
                     catch
                         storageLocation = self.workspace1.containerStorage(containerIndex).model.base;
@@ -360,15 +366,29 @@ classdef Controller < handle
             
             % Drop end effector down with spring and turn on suction
             targetTransform = storageLocation;
-            targetTransform(3,4) = (storageLocation(3,4) - self.springStroke);
+%             targetTransform(3,4) = (storageLocation(3,4)); % - self.springStroke
+            if (self.workspace1.realRobotToggle == 1)
+                targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
+                targetTransform(3,4) = targetTransform(3,4) - 0.001; % - self.springStroke
+            end
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             if (self.workspace1.realRobotToggle == 1)
                 self.ROSCom1.MoveTool(1);
             end
             
+            % Come back up from spring down position
             targetTransform = storageLocation;
             targetTransform(2,4) = (storageLocation(2,4) - 0.01);
+            if (self.workspace1.realRobotToggle == 1)
+                targetTransform = self.workspace1.Dobot1.model.fkine(currentJointAngles);
+                if (containerType == 2) || (containerType == 3)
+                    targetTransform(3,4) = targetTransform(3,4) + self.springStroke + 0.01;
+                else
+                    targetTransform(3,4) = targetTransform(3,4) + self.springStroke - 0.005;
+                    targetTransform(2,4) = targetTransform(2,4) - self.springStroke - 0.01;
+                end
+            end
             [targetJointAngles, ~] = self.workspace1.Dobot1.GetLocalPose(currentJointAngles, targetTransform);
             currentJointAngles = self.JointCommand(currentJointAngles, targetJointAngles, self.dobotShortestSteps);
             
