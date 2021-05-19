@@ -2,9 +2,9 @@ close all; clear all; clc; clf;
 
 workspaceSize = [-1, 1, -1, 1, -0.012, 1];
 dobotBaseTransform = transl(0,0,0);
-simulationToggle = 1;
-realRobotToggle = 0;
-kinectToggle = 0;
+simulationToggle = 0;
+realRobotToggle = 1;
+kinectToggle = 1;
 
 workspace = Workspace(realRobotToggle, simulationToggle, kinectToggle, dobotBaseTransform, workspaceSize);
 kinect = Kinect(kinectToggle);
@@ -27,6 +27,24 @@ for i = 1:viewSteps
     pause(0.05)
 end
 [az, el] = view;
+
+%% Calibration Demo
+
+% q = controller.workspace1.Dobot1.jointStateDefault;
+% realQ = controller.workspace1.Dobot1.GetRealJointAngles(q(2:end), 0);
+% controller.ROSCom1.MoveJoint(realQ);
+% 
+% controller.ROSCom1.MoveRail(0.55);
+
+%% Continue Demo
+
+% controller.ROSCom1.MoveTool(1)
+
+%% Continue Demo
+
+% controller.CameraCalibrationRun();
+
+%%
 
 % initangle = rad2deg(tr2rpy(controller.kinect1.GetTargetRaw(0)));
 % while(1)

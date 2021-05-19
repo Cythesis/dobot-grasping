@@ -12,9 +12,9 @@ classdef Kinect < handle
         function self = Kinect(kinectToggle)
             if (kinectToggle == 1)
                 %default kinect transform
-                self.tKinect = [1.0000         0         0   -0.2300;...
-                                     0   -1.0000   -0.0000    0.2170;...
-                                     0    0.0000   -1.0000    0.9000;...
+                self.tKinect = [1.0000         0         0   -0.2575;...
+                                     0   -1.0000   -0.0000    0.2500;...
+                                     0    0.0000   -1.0000    0.8900;...
                                      0         0         0    1.0000];
                 
                 %Set buffer size for callback
@@ -39,6 +39,8 @@ classdef Kinect < handle
              self.tKinect(1,4) = tNew(1,4);
              self.tKinect(2,4) = tNew(2,4);
              self.tKinect(3,4) = tNew(3,4);
+             disp("New Calibrated Kinect Transform: ")
+             disp(self.tKinect)
         end
         
         %Returns the camera frame pose of a selected marker
