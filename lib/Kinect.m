@@ -33,7 +33,7 @@ classdef Kinect < handle
         %Function that calculates the pose of the kinect using a global
         %pose of a marker and the kinect frame pose of the same marker.
         function FindCalibrationTransform(self, tGlobeMarker)
-             tRaw = self.GetTargetRaw(0);
+             tRaw = self.GetTargetRaw(0,1);
              tCamMarker = transl(tRaw(1,4),tRaw(2,4),-tRaw(3,4));
              tNew = tGlobeMarker*inv(tCamMarker);
              self.tKinect(1,4) = tNew(1,4);
@@ -41,76 +41,11 @@ classdef Kinect < handle
              self.tKinect(3,4) = tNew(3,4);
         end
         
-        %Returns the camera frame pose of a selected marker
-        function tRaw = GetTargetRaw(self, selectedTag)
-            errorFlag = 1;
-            sample = self.msgs;
-            num = length(sample);
-            
-            % -- Averaging -- %
-%             ave = 0;
-%             translationSum = zeros(4,4);
-%             rotationSum = zeros(4,4);
-            % -- Averaging -- %
-            
-            disp("Searching for tag... ")
-            for i = 1:num
-                ID = sample(i).msg.Transforms.ChildFrameId;
-                ID = split(ID,"_");
-                ID = ID(3);
-                ID = ID{1,1};
-                ID = str2double(ID);
-                if ID == selectedTag
-                    % -- Averaging -- %
-%                     ave = ave + 1;
-%                     translation = sample(i).msg.Transforms.Transform.Translation;
-%                     translationSum = translationSum + transl(translation.X, translation.Y, translation.Z);
-% 
-%                     rotation = sample(i).msg.Transforms.Transform.Rotation;
-%                     quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
-%                     euler = quat2eul(quaternion);
-%                     rotationSum = rotationSum + rpy2tr(euler(3:-1:1));
-                    % -- Averaging -- %
-                    
-                    % -- No Averaging -- %
-                    index = i;
-                    % -- No Averaging -- %
-                    
-                    errorFlag = 0;
-                end
-            end
-            
-            if errorFlag == 1
-                disp('Error, requested tag not found')
-                tRaw = 0;
-                return
-            end
-            
-            % -- Averaging -- %
-%             translationAve = translationSum/ave;
-%             rotationAve = rotationSum/ave;
-%             
-%             tRaw = translationAve*rotationAve;
-            % -- Averaging -- %
-
-            % -- No Averaging -- %
-            translation = sample(index).msg.Transforms.Transform.Translation;
-            translationT = transl(translation.X, translation.Y, translation.Z);
-
-            rotation = sample(index).msg.Transforms.Transform.Rotation;
-            quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
-            euler = quat2eul(quaternion);
-            rotationT = rpy2tr(euler(3:-1:1));
-            
-            tRaw = translationT*rotationT;
-            % -- No Averaging -- %
-        end
-        
         %Function used to collect items from the pantry to user.
         %Returns the global frame pose of a selected marker using the
         %camera frame pose and the global pose of the kinect.
         function tGlobe = RetrieveFood(self, selectedTag)
-            tRaw = self.GetTargetRaw(selectedTag);
+            tRaw = self.GetTargetRaw(selectedTag, 0);
             tGlobe = self.tKinect * tRaw;
         end
         
@@ -210,6 +145,84 @@ classdef Kinect < handle
             self.msgs(end+1).msg = message;
             if length(self.msgs) > self.buffer
                 self.msgs(1) = [];
+            end
+        end
+    end
+    methods (Access = private)
+                %Returns the camera frame pose of a selected marker
+        function tRaw = GetTargetRaw(self, selectedTag, averageToggle)
+            
+            if averageToggle > 1 || averageToggle < 0
+                disp('Out of range toggle value')
+                return
+            end
+            
+            errorFlag = 1;
+            sample = self.msgs;
+            num = length(sample);
+            
+            if averageToggle == 1
+                % -- Averaging -- %
+                ave = 0;
+                translationSum = zeros(4,4);
+                rotationSum = zeros(4,4);
+                % -- Averaging -- %
+            end
+            
+            disp("Searching for tag... ")
+            for i = 1:num
+                ID = sample(i).msg.Transforms.ChildFrameId;
+                ID = split(ID,"_");
+                ID = ID(3);
+                ID = ID{1,1};
+                ID = str2double(ID);
+                if ID == selectedTag
+                    if averageToggle == 1
+                        % -- Averaging -- %
+                        ave = ave + 1;
+                        translation = sample(i).msg.Transforms.Transform.Translation;
+                        translationSum = translationSum + transl(translation.X, translation.Y, translation.Z);
+    
+                        rotation = sample(i).msg.Transforms.Transform.Rotation;
+                        quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
+                        euler = quat2eul(quaternion);
+                        rotationSum = rotationSum + rpy2tr(euler(3:-1:1));
+                        % -- Averaging -- %
+                    else
+                        % -- No Averaging -- %
+                        index = i;
+                        % -- No Averaging -- %
+                    end
+                    
+                    errorFlag = 0;
+                end
+            end
+            
+            if errorFlag == 1
+                disp('Error, requested tag not found')
+                tRaw = 0;
+                return
+            end
+            
+            if averageToggle == 1
+                % -- Averaging -- %
+                translationAve = translationSum/ave;
+                rotationAve = rotationSum/ave;
+                
+                tRaw = translationAve*rotationAve;
+                % -- Averaging -- %
+            else
+                % -- No Averaging -- %
+                translation = sample(index).msg.Transforms.Transform.Translation;
+                translationT = transl(translation.X, translation.Y, translation.Z);
+
+                rotation = sample(index).msg.Transforms.Transform.Rotation;
+                quaternion = [rotation.W,rotation.X,rotation.Y,translation.Z];
+                euler = quat2eul(quaternion);
+                rotationT = rpy2tr(euler(3:-1:1));
+
+                tRaw = translationT*rotationT;
+                % -- No Averaging -- %
             end
         end
     end
