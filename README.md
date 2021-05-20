@@ -1,9 +1,13 @@
 # Chef's Third Arm
 Developed by:
 Patrick Dowe
+
 David Dao
+
 Carl Hemsworth
+
 Adelaide Yuill
+
 Brendan Edwards
 
 ### Scenario
