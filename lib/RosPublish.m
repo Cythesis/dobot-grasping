@@ -25,19 +25,21 @@ classdef RosPublish < handle
     end
     methods(Access = public)
         
-        function self = RosPublish()
-            % Create ros subscribers
-%             self.arPoseSub = rossubscriber('/tf',@arPoseCallback);
-            self.jointStateSub = rossubscriber('/dobot_magician/joint_states');
-            self.railStateSub = rossubscriber('/dobot_magician/rail_position');
-            % Create ros publishers
-            [self.targetJointPub,self.targetJointMsg] = rospublisher('/dobot_magician/target_joint_states');
-            [self.targetPosePub,self.targetPoseMsg] = rospublisher('/dobot_magician/target_end_effector_pose');
-            [self.statusPub,self.statusMsg] = rospublisher('/dobot_magician/target_safety_status');
-            [self.toolPub, self.toolMsg] = rospublisher('/dobot_magician/target_tool_state');
-            [self.railStatusPub, self.railStatusMsg] = rospublisher('/dobot_magician/target_rail_status');
-            [self.railPosPub,self.railPosMsg] = rospublisher('/dobot_magician/target_rail_position');
-            [self.beltPub,self.beltMsg] = rospublisher('/dobot_magician/target_e_motor_state');
+        function self = RosPublish(realRobotToggle)
+            if (realRobotToggle == 1)
+                % Create ros subscribers
+    %             self.arPoseSub = rossubscriber('/tf',@arPoseCallback);
+                self.jointStateSub = rossubscriber('/dobot_magician/joint_states');
+                self.railStateSub = rossubscriber('/dobot_magician/rail_position');
+                % Create ros publishers
+                [self.targetJointPub,self.targetJointMsg] = rospublisher('/dobot_magician/target_joint_states');
+                [self.targetPosePub,self.targetPoseMsg] = rospublisher('/dobot_magician/target_end_effector_pose');
+                [self.statusPub,self.statusMsg] = rospublisher('/dobot_magician/target_safety_status');
+                [self.toolPub, self.toolMsg] = rospublisher('/dobot_magician/target_tool_state');
+                [self.railStatusPub, self.railStatusMsg] = rospublisher('/dobot_magician/target_rail_status');
+                [self.railPosPub,self.railPosMsg] = rospublisher('/dobot_magician/target_rail_position');
+                [self.beltPub,self.beltMsg] = rospublisher('/dobot_magician/target_e_motor_state');
+            end
         end
         
         function MoveTool(self, state)
@@ -51,14 +53,14 @@ classdef RosPublish < handle
            self.targetJointMsg.Points = Point;                          % Fill message in msg object
            send(self.targetJointPub,self.targetJointMsg);           % Send the message
            while 1
-               a = self.GetJoint().Position;
+               a = self.GetJoint();
                b = self.targetJointMsg.Points.Positions;
                pause(0.01);
-               if (abs(a(1)-b(1)) < 0.01) && (abs(a(2)-b(2)) < 0.01) && (abs(a(3)-b(3)) < 0.01) && (abs(a(4)-b(4)) < 0.01)
+               if (abs(a(1)-b(1)) < 0.01) && (abs(a(2)-b(2)) < 0.04) && (abs(a(3)-b(3)) < 0.01) && (abs(a(4)-b(4)) < 0.08)
                    break
                end
            end
-           disp("All done")
+%            disp("All done")
         end
         
         
@@ -94,15 +96,14 @@ classdef RosPublish < handle
            self.railPosMsg.Data = pos;
            send(self.railPosPub,self.railPosMsg);
            while 1
-               
-               a = self.GetRail().Data;
+               a = self.GetRail();
                b = self.railPosMsg.Data;
                pause(0.01);
                if abs(a-b) < 0.005
                    break
                end
            end
-           disp("All done")
+%            disp("All done")
        end
        
 %        function [ID, transform] = GetCurrentArPose(self)
@@ -123,12 +124,14 @@ classdef RosPublish < handle
 %            transform = transl(pose(1),pose(2),pose(2)) * rpy2tr(euler(1),euler(2),euler(3),euler(4));
 %        end
 
-       function [msg] = GetJoint(self)
+       function output = GetJoint(self)
            msg = self.jointStateSub.LatestMessage;
+           output = msg.Position;
        end
        
-       function [msg] = GetRail(self)
+       function output = GetRail(self)
            msg = self.railStateSub.LatestMessage;
+           output = msg.Data;
        end
        
        function MoveBelt(self,enabled,velocity)
