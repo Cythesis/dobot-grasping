@@ -26,3 +26,12 @@ The main code is a GUI program storred in the src file. Code functionality exist
 1. Select from containers that have been storred in the workspace.
 2. Vision system allows the Dobot to find requested container and place it on the conveyor.
 3. Conveyor will carry the container out of the enclosure.
+
+## Dependencies
+### MATLAB
+- Peter Corke Robotics Toolbox
+
+### ROS
+- ar_track_alvar
+- openni_launch
+- dobot_magician_driver
